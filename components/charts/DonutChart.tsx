@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '../../hooks/useTheme';
-import { FontSize } from '../../constants/theme';
+import { FontFamily, FontSize } from '../../constants/theme';
 import { DRINK_TYPES } from '../../constants/drinks';
 
 interface DonutSegment {
@@ -148,11 +148,11 @@ const styles = StyleSheet.create({
   },
   centerText: {
     fontSize: FontSize.lg,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: FontFamily.bold,
   },
   centerSub: {
     fontSize: FontSize.xs,
-    fontFamily: 'Inter_300Light',
+    fontFamily: FontFamily.light,
   },
   legend: {
     marginTop: 12,
@@ -170,6 +170,6 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: FontSize.sm,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: FontFamily.regular,
   },
 });

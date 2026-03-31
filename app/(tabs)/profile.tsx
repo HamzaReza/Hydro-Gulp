@@ -1,7 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import * as LocalAuthentication from "expo-local-authentication";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -24,16 +23,13 @@ import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { Brand } from "../../constants/branding";
-import { BorderRadius, Colors, FontSize } from "../../constants/theme";
+import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
 import { AppDispatch, RootState } from "../../store";
 import { deleteAccountThunk, logoutThunk } from "../../store/slices/authSlice";
 import { updateProfileThunk } from "../../store/slices/profileSlice";
-import {
-  setBiometricEnabled,
-  toggleTheme,
-} from "../../store/slices/settingsSlice";
+import { toggleTheme } from "../../store/slices/settingsSlice";
 
 function Avatar({
   name,
@@ -135,9 +131,6 @@ export default function ProfileScreen() {
     (state: RootState) => state.profile,
   );
   const themeMode = useSelector((state: RootState) => state.settings.theme);
-  const biometricEnabled = useSelector(
-    (state: RootState) => state.settings.biometricEnabled,
-  );
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(name);
@@ -177,39 +170,6 @@ export default function ProfileScreen() {
     setEditModalVisible(false);
   };
 
-  const handleBiometricToggle = async (value: boolean) => {
-    if (!isPremium) {
-      Alert.alert(
-        "Premium Feature",
-        "Upgrade to Pro to enable biometric lock.",
-      );
-      return;
-    }
-    if (value) {
-      const supported = await LocalAuthentication.hasHardwareAsync();
-      if (!supported) {
-        Alert.alert(
-          "Not Supported",
-          "Biometric authentication is not available on this device.",
-        );
-        return;
-      }
-      const enrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!enrolled) {
-        Alert.alert(
-          "Not Enrolled",
-          "Please set up biometrics in your device settings.",
-        );
-        return;
-      }
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Enable biometric lock",
-      });
-      if (!result.success) return;
-    }
-    dispatch(setBiometricEnabled(value));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
 
   const handleLogout = async () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
@@ -415,30 +375,6 @@ export default function ProfileScreen() {
                   true: theme.accent,
                 }}
                 thumbColor="#fff"
-              />
-            }
-          />
-          <View
-            style={[styles.divider, { backgroundColor: theme.cardBorder }]}
-          />
-          <SettingsRow
-            icon="fingerprint"
-            title={isPremium ? "Biometric Lock" : "Biometric Lock (Pro)"}
-            subtitle={
-              isPremium
-                ? "Secure app with Face ID / Touch ID"
-                : "Upgrade to enable"
-            }
-            right={
-              <Switch
-                value={biometricEnabled && isPremium}
-                onValueChange={handleBiometricToggle}
-                trackColor={{
-                  false: theme.progressBackground,
-                  true: theme.accent,
-                }}
-                thumbColor="#fff"
-                disabled={!isPremium}
               />
             }
           />
@@ -669,7 +605,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20 },
   screenTitle: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 20,
   },
   profileCard: { marginBottom: 16, borderRadius: 24, padding: 0 },
@@ -684,16 +620,16 @@ const styles = StyleSheet.create({
   },
   avatarInitials: {
     color: "#fff",
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
   },
   profileName: {
     fontSize: FontSize.lg,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 2,
   },
   profileEmail: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     marginBottom: 8,
   },
   editBtn: {
@@ -708,7 +644,7 @@ const styles = StyleSheet.create({
   },
   editBtnText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   statsRow: {
     flexDirection: "row",
@@ -722,12 +658,12 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: FontSize.xs,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   statDivider: {
     width: 1,
@@ -746,20 +682,20 @@ const styles = StyleSheet.create({
   proBadgeText: {
     color: "#fff",
     fontSize: FontSize.sm,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
   },
   subscriptionTitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
   },
   subscriptionDesc: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     marginTop: 2,
   },
   sectionTitle: {
     fontSize: FontSize.lg,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 12,
     marginTop: 8,
   },
@@ -773,11 +709,11 @@ const styles = StyleSheet.create({
   settingIcon: { marginRight: 12 },
   settingTitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   settingSubtitle: {
     fontSize: FontSize.xs,
-    fontFamily: "Inter_300Light",
+    fontFamily: FontFamily.light,
     marginTop: 1,
   },
   divider: { height: 1, marginHorizontal: 16 },
@@ -791,12 +727,12 @@ const styles = StyleSheet.create({
   },
   dangerZoneTitle: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   dangerCard: { borderRadius: 16, borderWidth: 1, marginTop: 4 },
   dangerDesc: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     lineHeight: 20,
   },
   modalContainer: { flex: 1 },
@@ -809,12 +745,12 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: FontSize.xl,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
   },
   modalField: { marginBottom: 16 },
   modalLabel: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 8,
   },
   modalInput: {
@@ -823,7 +759,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 52,
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   unitToggle: {
     flexDirection: "row",
@@ -839,6 +775,6 @@ const styles = StyleSheet.create({
   },
   unitBtnText: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
 });

@@ -20,7 +20,7 @@ import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../hooks/useTheme';
-import { FontSize } from '../../constants/theme';
+import { FontFamily, FontSize } from '../../constants/theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FontSize.lg,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: FontFamily.semibold,
     textAlign: 'center',
     paddingBottom: 16,
     paddingHorizontal: 24,

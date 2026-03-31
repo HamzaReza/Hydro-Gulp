@@ -13,10 +13,11 @@ import {
 } from "react-native";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useDispatch, useSelector } from "react-redux";
+import LogoImage from "../assets/images/logo.png";
 import { GradientButton } from "../components/ui/GradientButton";
 import { ScreenWrapper } from "../components/ui/ScreenWrapper";
 import { Brand } from "../constants/branding";
-import { Colors, FontSize } from "../constants/theme";
+import { Colors, FontFamily, FontSize } from "../constants/theme";
 import { usePremium } from "../hooks/usePremium";
 import { useTheme } from "../hooks/useTheme";
 import { AppDispatch, RootState } from "../store";
@@ -58,7 +59,7 @@ function AppLogo() {
   return (
     <View style={styles.animationContainer}>
       <Image
-        source={require("../assets/images/logo.png")}
+        source={LogoImage}
         style={styles.logoImage}
         resizeMode="contain"
       />
@@ -304,14 +305,14 @@ const styles = StyleSheet.create({
   },
   proTitle: {
     fontSize: 36,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.offWhite,
     textAlign: "center",
     marginBottom: 8,
   },
   proSubtitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: "rgba(247,248,240,0.7)",
     textAlign: "center",
     lineHeight: 22,
@@ -338,13 +339,13 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: Colors.offWhite,
     flex: 1,
   },
   sectionLabel: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     textAlign: "center",
     marginBottom: 12,
     textTransform: "uppercase",
@@ -381,29 +382,29 @@ const styles = StyleSheet.create({
   },
   planBadgeText: {
     fontSize: 9,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.darkNavy,
     textAlign: "center",
   },
   planLabel: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     color: "rgba(247,248,240,0.7)",
     marginBottom: 4,
   },
   planPrice: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.offWhite,
   },
   planPeriod: {
     fontSize: FontSize.xs,
-    fontFamily: "Inter_300Light",
+    fontFamily: FontFamily.light,
     color: "rgba(247,248,240,0.6)",
   },
   planTotal: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     color: Colors.lightBlue,
     marginTop: 6,
   },
@@ -421,14 +422,14 @@ const styles = StyleSheet.create({
   },
   ctaNote: {
     fontSize: FontSize.xs,
-    fontFamily: "Inter_300Light",
+    fontFamily: FontFamily.light,
     color: "rgba(247,248,240,0.55)",
     textAlign: "center",
     lineHeight: 18,
   },
   restoreText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: "rgba(247,248,240,0.5)",
     textDecorationLine: "underline",
   },
@@ -439,7 +440,7 @@ const styles = StyleSheet.create({
   },
   alreadyProTitle: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.offWhite,
     textAlign: "center",
     marginTop: 16,
@@ -447,7 +448,7 @@ const styles = StyleSheet.create({
   },
   alreadyProDesc: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: "rgba(247,248,240,0.7)",
     textAlign: "center",
     lineHeight: 22,

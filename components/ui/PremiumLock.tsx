@@ -6,7 +6,7 @@ import { router } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Brand } from "../../constants/branding";
-import { BorderRadius, Colors, FontSize } from "../../constants/theme";
+import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
 import { AppLogoMark } from "./AppLogoMark";
 
@@ -106,13 +106,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: FontSize.xl,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     textAlign: "center",
     marginBottom: 8,
   },
   description: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     textAlign: "center",
     marginBottom: 24,
     lineHeight: 22,
@@ -131,6 +131,6 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
 });

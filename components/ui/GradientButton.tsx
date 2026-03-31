@@ -11,7 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../hooks/useTheme';
-import { FontSize, BorderRadius, Colors } from '../../constants/theme';
+import { FontFamily, FontSize, BorderRadius, Colors } from '../../constants/theme';
 
 interface GradientButtonProps {
   label: string;
@@ -173,12 +173,12 @@ const styles = StyleSheet.create({
   primaryText: {
     color: '#fff',
     fontSize: FontSize.base,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: FontFamily.semibold,
     letterSpacing: 0.3,
   },
   ghostText: {
     fontSize: FontSize.base,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: FontFamily.semibold,
     letterSpacing: 0.3,
   },
   row: {

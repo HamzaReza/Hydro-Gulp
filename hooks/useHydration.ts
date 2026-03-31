@@ -23,7 +23,7 @@ export const useHydration = () => {
   const unit = useSelector((state: RootState) => state.profile.unit);
   const syncError = useSelector((state: RootState) => state.hydration.syncError);
 
-  const progressPercent = goal > 0 ? Math.min((todayTotal / goal) * 100, 100) : 0;
+  const progressPercent = goal > 0 ? (todayTotal / goal) * 100 : 0;
 
   const addLog = useCallback(
     (amount: number, type: string = 'water') => {

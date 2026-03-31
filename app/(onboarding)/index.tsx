@@ -15,7 +15,8 @@ import { useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 import { useDispatch } from "react-redux";
-import { BorderRadius, Colors, FontSize } from "../../constants/theme";
+import LogoImage from "../../assets/images/logo.png";
+import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 import { AppDispatch } from "../../store";
 import { setHasSeenOnboarding } from "../../store/slices/authSlice";
 
@@ -166,7 +167,7 @@ export default function OnboardingScreen() {
               <View style={styles.iconContainer}>
                 {slide.icon === "drop" && (
                   <Image
-                    source={require("../../assets/images/logo.png")}
+                    source={LogoImage}
                     style={styles.logoImage}
                     resizeMode="contain"
                   />
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 40,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.offWhite,
     textAlign: "center",
     lineHeight: 48,
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: "rgba(247, 248, 240, 0.75)",
     textAlign: "center",
     lineHeight: 24,
@@ -296,11 +297,11 @@ const styles = StyleSheet.create({
   nextButtonText: {
     color: Colors.offWhite,
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   loginText: {
     color: "rgba(247, 248, 240, 0.6)",
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
 });

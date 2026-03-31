@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
-import { Colors, FontSize } from '../../constants/theme';
+import { Colors, FontFamily, FontSize } from '../../constants/theme';
 import { getDatesInMonth } from '../../utils/dateUtils';
 
 interface HeatmapCalendarProps {
@@ -45,7 +45,9 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
 
   const weeks: (string | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) {
-    weeks.push(cells.slice(i, i + 7));
+    const week = cells.slice(i, i + 7);
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
   }
 
   const monthName = new Date(year, month, 1).toLocaleString('default', {
@@ -123,7 +125,7 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
 const styles = StyleSheet.create({
   monthTitle: {
     fontSize: FontSize.base,
-    fontFamily: 'Inter_600SemiBold',
+    fontFamily: FontFamily.semibold,
     marginBottom: 12,
   },
   dayLabels: {
@@ -134,7 +136,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: FontSize.xs,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: FontFamily.regular,
   },
   week: {
     flexDirection: 'row',
@@ -150,7 +152,7 @@ const styles = StyleSheet.create({
   },
   dayNum: {
     fontSize: 10,
-    fontFamily: 'Inter_400Regular',
+    fontFamily: FontFamily.regular,
   },
   legend: {
     flexDirection: 'row',
@@ -166,7 +168,7 @@ const styles = StyleSheet.create({
   },
   legendLabel: {
     fontSize: FontSize.xs,
-    fontFamily: 'Inter_300Light',
+    fontFamily: FontFamily.light,
     marginHorizontal: 4,
   },
 });

@@ -12,14 +12,12 @@ interface Reminder {
 interface SettingsState {
   theme: "light" | "dark";
   notificationsEnabled: boolean;
-  biometricEnabled: boolean;
   reminders: Reminder[];
 }
 
 const initialState: SettingsState = {
   theme: "light",
   notificationsEnabled: false,
-  biometricEnabled: false,
   reminders: [],
 };
 
@@ -35,9 +33,6 @@ const settingsSlice = createSlice({
     },
     setNotificationsEnabled: (state, action: PayloadAction<boolean>) => {
       state.notificationsEnabled = action.payload;
-    },
-    setBiometricEnabled: (state, action: PayloadAction<boolean>) => {
-      state.biometricEnabled = action.payload;
     },
     setReminders: (state, action: PayloadAction<Reminder[]>) => {
       state.reminders = action.payload;
@@ -67,7 +62,6 @@ export const {
   setTheme,
   toggleTheme,
   setNotificationsEnabled,
-  setBiometricEnabled,
   setReminders,
   addReminder,
   updateReminder,

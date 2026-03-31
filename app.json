@@ -2,7 +2,15 @@
   "expo": {
     "name": "Hydro: Gulp",
     "slug": "hydro-gulp",
+    "owner": "hamzareza",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "scheme": "hydrogulp",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
@@ -42,6 +50,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-updates",
       [
         "expo-notifications",
         {
@@ -54,10 +63,17 @@
         {
           "faceIDPermission": "Use Face ID to securely unlock Hydro: Gulp"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a79e7876-3c98-4e1d-b2b5-55c165069b95"
+      }
     }
   }
 }

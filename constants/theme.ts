@@ -87,3 +87,13 @@ export const FontSize = {
   hero: 48,
   display: 64,
 };
+
+/** Loaded in `app/_layout.tsx` via expo-font — assets/fonts/SpaceGrotesk-*.ttf */
+export const FontFamily = {
+  /** De-emphasized copy; Space Grotesk has no Light weight */
+  light: "SpaceGrotesk-Regular",
+  regular: "SpaceGrotesk-Regular",
+  medium: "SpaceGrotesk-Medium",
+  semibold: "SpaceGrotesk-SemiBold",
+  bold: "SpaceGrotesk-Bold",
+} as const;

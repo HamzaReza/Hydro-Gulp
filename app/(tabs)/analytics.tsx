@@ -8,7 +8,7 @@ import { WeeklyBarChart } from "../../components/charts/WeeklyBarChart";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { PremiumLock } from "../../components/ui/PremiumLock";
 import { DRINK_TYPES } from "../../constants/drinks";
-import { Colors, FontSize } from "../../constants/theme";
+import { Colors, FontFamily, FontSize } from "../../constants/theme";
 import { useHydration } from "../../hooks/useHydration";
 import { usePremium } from "../../hooks/usePremium";
 import { useStreak } from "../../hooks/useStreak";
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20 },
   screenTitle: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 20,
   },
   statsRow: {
@@ -347,17 +347,17 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: FontSize.xl,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: FontSize.xs,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     textAlign: "center",
   },
   statUnit: {
     fontSize: 10,
-    fontFamily: "Inter_300Light",
+    fontFamily: FontFamily.light,
   },
   scoreCircle: {
     width: 44,
@@ -369,13 +369,13 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: "#fff",
   },
   card: { marginBottom: 16, borderRadius: 20 },
   cardTitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 16,
   },
   timeRow: {
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   timeEmoji: { fontSize: 16, width: 24 },
-  timePeriod: { fontSize: FontSize.sm, fontFamily: "Inter_400Regular" },
+  timePeriod: { fontSize: FontSize.sm, fontFamily: FontFamily.regular },
   timeBar: {
     flex: 1,
     height: 8,
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   },
   timeTotal: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     width: 32,
     textAlign: "right",
   },
@@ -410,12 +410,12 @@ const styles = StyleSheet.create({
   },
   insightText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     lineHeight: 20,
   },
   noDataText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     textAlign: "center",
     paddingVertical: 16,
   },

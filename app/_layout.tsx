@@ -1,13 +1,8 @@
-import {
-  Inter_300Light,
-  Inter_400Regular,
-  Inter_600SemiBold,
-  Inter_700Bold,
-  useFonts,
-} from "@expo-google-fonts/inter";
+import { useFonts } from "expo-font";
 import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import * as Updates from "expo-updates";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 import React, { useCallback, useEffect } from "react";
@@ -16,6 +11,10 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
+import SpaceGroteskBold from "../assets/fonts/SpaceGrotesk-Bold.ttf";
+import SpaceGroteskMedium from "../assets/fonts/SpaceGrotesk-Medium.ttf";
+import SpaceGroteskRegular from "../assets/fonts/SpaceGrotesk-Regular.ttf";
+import SpaceGroteskSemiBold from "../assets/fonts/SpaceGrotesk-SemiBold.ttf";
 import { Colors } from "../constants/theme";
 import { auth, db } from "../firebase";
 import { AppDispatch, persistor, RootState, store } from "../store";
@@ -119,10 +118,10 @@ function AppContent() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    Inter_300Light,
-    Inter_400Regular,
-    Inter_600SemiBold,
-    Inter_700Bold,
+    "SpaceGrotesk-Regular": SpaceGroteskRegular,
+    "SpaceGrotesk-Medium": SpaceGroteskMedium,
+    "SpaceGrotesk-SemiBold": SpaceGroteskSemiBold,
+    "SpaceGrotesk-Bold": SpaceGroteskBold,
   });
 
   const onLayoutRootView = useCallback(async () => {
@@ -130,6 +129,32 @@ export default function RootLayout() {
       await SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const applyOtaUpdateIfAvailable = async () => {
+      if (__DEV__ || !Updates.isEnabled) return;
+
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (!update.isAvailable) return;
+
+        await Updates.fetchUpdateAsync();
+        if (mounted) {
+          await Updates.reloadAsync();
+        }
+      } catch {
+        // Keep app usable if update check fails.
+      }
+    };
+
+    applyOtaUpdateIfAvailable();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   if (!fontsLoaded) return null;
 

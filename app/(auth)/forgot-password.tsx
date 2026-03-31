@@ -14,7 +14,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
-import { BorderRadius, Colors, FontSize } from "../../constants/theme";
+import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 import { AppDispatch, RootState } from "../../store";
 import { clearError, resetPasswordThunk } from "../../store/slices/authSlice";
 
@@ -170,13 +170,13 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.offWhite,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: "rgba(247,248,240,0.65)",
     marginBottom: 32,
     lineHeight: 24,
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     color: "rgba(247,248,240,0.8)",
   },
   inputWrapper: {
@@ -211,12 +211,12 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: Colors.offWhite,
   },
   errorText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: Colors.error,
   },
   errorBanner: {
@@ -244,14 +244,14 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.offWhite,
     marginBottom: 12,
     textAlign: "center",
   },
   successText: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: "rgba(247,248,240,0.7)",
     textAlign: "center",
     lineHeight: 24,

@@ -2,10 +2,11 @@ import { Brand } from "@/constants/branding";
 import { router } from "expo-router";
 import React from "react";
 import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
+import LogoImage from "../../assets/images/logo.png";
 import { AppLogoMark } from "../../components/ui/AppLogoMark";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
-import { BorderRadius, Colors, FontSize } from "../../constants/theme";
+import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 
 const { width } = Dimensions.get("window");
 
@@ -18,7 +19,7 @@ export default function WelcomeScreen() {
       <View style={[styles.content, { paddingTop: 40, paddingBottom: 32 }]}>
         <View style={styles.heroSection}>
           <Image
-            source={require("../../assets/images/logo.png")}
+            source={LogoImage}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -82,14 +83,14 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 48,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.offWhite,
     marginTop: 16,
     letterSpacing: -1,
   },
   tagline: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_300Light",
+    fontFamily: FontFamily.light,
     color: "rgba(247, 248, 240, 0.7)",
     marginTop: 8,
   },
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: Colors.offWhite,
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   buttons: {
     gap: 12,

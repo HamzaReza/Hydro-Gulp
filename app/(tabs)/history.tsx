@@ -16,7 +16,12 @@ import { GlassCard } from "../../components/ui/GlassCard";
 import { PremiumLock } from "../../components/ui/PremiumLock";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { DRINK_TYPES } from "../../constants/drinks";
-import { BorderRadius, Colors, FontSize } from "../../constants/theme";
+import {
+  BorderRadius,
+  Colors,
+  FontFamily,
+  FontSize,
+} from "../../constants/theme";
 import { useHydration } from "../../hooks/useHydration";
 import { usePremium } from "../../hooks/usePremium";
 import { useStreak } from "../../hooks/useStreak";
@@ -58,12 +63,41 @@ export default function HistoryScreen() {
     }
   }, [uid]);
 
+  useEffect(() => {
+    if (uid && viewMode === "year") {
+      const year = new Date().getFullYear();
+      dispatch(
+        fetchLogsForRangeThunk({
+          uid,
+          startDate: `${year}-01-01`,
+          endDate: `${year}-12-31`,
+        }),
+      );
+    }
+  }, [uid, viewMode]);
+
   const toggleExpand = (date: string) => {
     setExpandedDates((prev) => {
       const next = new Set(prev);
       if (next.has(date)) next.delete(date);
       else next.add(date);
       return next;
+    });
+  };
+
+  const getYearlyData = () => {
+    const year = now.getFullYear();
+    return Array.from({ length: 12 }, (_, i) => {
+      const m = String(i + 1).padStart(2, "0");
+      const monthKey = `${year}-${m}`;
+      const total = Object.entries(logs)
+        .filter(([date]) => date.startsWith(monthKey))
+        .reduce(
+          (sum, [, dayLogs]) =>
+            sum + dayLogs.reduce((s, l) => s + l.hydrationValue, 0),
+          0,
+        );
+      return { date: monthKey, total };
     });
   };
 
@@ -110,8 +144,8 @@ export default function HistoryScreen() {
                         viewMode === mode ? theme.accent : theme.textSecondary,
                       fontFamily:
                         viewMode === mode
-                          ? "Inter_600SemiBold"
-                          : "Inter_400Regular",
+                          ? FontFamily.semibold
+                          : FontFamily.regular,
                     },
                   ]}
                 >
@@ -125,29 +159,43 @@ export default function HistoryScreen() {
         {/* Chart */}
         <GlassCard style={styles.chartCard}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>
-            {viewMode === "week" ? "7-Day Intake" : "30-Day Intake"}
+            {viewMode === "week"
+              ? "7-Day Intake"
+              : viewMode === "month"
+                ? "30-Day Intake"
+                : `${now.getFullYear()} Monthly Overview`}
           </Text>
-          {viewMode !== "year" ? (
+          {viewMode === "week" && (
             <WeeklyBarChart
-              data={
-                viewMode === "week"
-                  ? weeklyData
-                  : getLast30Days().map((date) => ({
-                      date,
-                      total: (logs[date] || []).reduce(
-                        (sum, l) => sum + l.hydrationValue,
-                        0,
-                      ),
-                    }))
-              }
+              data={weeklyData}
               goal={goal}
+              labelType="date"
+              unit={unit}
             />
-          ) : (
-            <View style={styles.emptyChart}>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                Yearly view shows monthly summaries
-              </Text>
-            </View>
+          )}
+          {viewMode === "month" && (
+            <WeeklyBarChart
+              data={getLast30Days().map((date) => ({
+                date,
+                total: (logs[date] || []).reduce(
+                  (sum, l) => sum + l.hydrationValue,
+                  0,
+                ),
+              }))}
+              goal={goal}
+              scrollable
+              labelType="date"
+              unit={unit}
+            />
+          )}
+          {viewMode === "year" && (
+            <WeeklyBarChart
+              data={getYearlyData()}
+              goal={goal * 30}
+              labelType="monthName"
+              showGoalLine={false}
+              unit={unit}
+            />
           )}
         </GlassCard>
 
@@ -254,7 +302,7 @@ export default function HistoryScreen() {
                             style={{
                               color: Colors.success,
                               fontSize: 11,
-                              fontFamily: "Inter_600SemiBold",
+                              fontFamily: FontFamily.semibold,
                             }}
                           >
                             ✓ Goal
@@ -351,7 +399,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20 },
   screenTitle: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 20,
   },
   toggleCard: { marginBottom: 16, borderRadius: 16 },
@@ -360,13 +408,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 16,
   },
   toggleText: { fontSize: FontSize.sm },
   chartCard: { marginBottom: 16, borderRadius: 20 },
   cardTitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 16,
   },
   emptyChart: {
@@ -376,7 +424,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     textAlign: "center",
   },
   statsRow: {
@@ -392,17 +440,17 @@ const styles = StyleSheet.create({
   statEmoji: { fontSize: 22, marginBottom: 4 },
   statValue: {
     fontSize: FontSize.xl,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 10,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     textAlign: "center",
   },
   sectionTitle: {
     fontSize: FontSize.lg,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 12,
   },
   emptyCard: { borderRadius: 20, marginBottom: 12 },
@@ -418,12 +466,12 @@ const styles = StyleSheet.create({
   dayHeaderLeft: {},
   dayDate: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 2,
   },
   dayTotal: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   dayHeaderRight: {
     flexDirection: "row",
@@ -447,11 +495,11 @@ const styles = StyleSheet.create({
   logDrink: {
     flex: 1,
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   logAmount: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   exportBtn: {
     flexDirection: "row",
@@ -465,6 +513,6 @@ const styles = StyleSheet.create({
   },
   exportText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
 });

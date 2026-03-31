@@ -18,7 +18,7 @@ import { BottomSheet } from "../../components/ui/BottomSheet";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
-import { BorderRadius, Colors, FontSize } from "../../constants/theme";
+import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 import { db } from "../../firebase";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
@@ -97,9 +97,30 @@ export default function RemindersScreen() {
     }
   };
 
+  const handleEditReminder = (reminderId: string) => {
+    const reminder = reminders.find((r) => r.id === reminderId);
+    if (!reminder) return;
+    setEditingReminder(reminderId);
+    setReminderTime(reminder.time);
+    setReminderLabel(reminder.label);
+    setSheetVisible(true);
+  };
+
   const handleSaveReminder = async () => {
     if (!reminderTime.match(/^\d{2}:\d{2}$/)) {
       Alert.alert("Invalid Time", "Please enter time in HH:MM format.");
+      return;
+    }
+
+    const duplicate = reminders.find(
+      (r) => r.time === reminderTime && r.id !== editingReminder,
+    );
+    if (duplicate) {
+      Alert.alert(
+        "Duplicate Reminder",
+        `You already have a reminder set for ${reminderTime}.`,
+        [{ text: "OK" }],
+      );
       return;
     }
 
@@ -172,13 +193,25 @@ export default function RemindersScreen() {
       count,
     );
 
-    const newReminders = times.map((time, i) => ({
-      id: `smart-${Date.now()}-${i}`,
-      time,
-      enabled: true,
-      label: "Time to hydrate!",
-      smartReminder: true,
-    }));
+    const existingTimes = new Set(reminders.map((r) => r.time));
+    const newReminders = times
+      .filter((time) => !existingTimes.has(time))
+      .map((time, i) => ({
+        id: `smart-${Date.now()}-${i}`,
+        time,
+        enabled: true,
+        label: "Time to hydrate!",
+        smartReminder: true,
+      }));
+
+    if (newReminders.length === 0) {
+      Alert.alert(
+        "No New Reminders",
+        "All generated times already have reminders set.",
+        [{ text: "OK" }],
+      );
+      return;
+    }
 
     for (const r of newReminders) {
       dispatch(addReminder(r));
@@ -321,10 +354,12 @@ export default function RemindersScreen() {
             style={[styles.limitCard, { borderColor: Colors.warning + "40" }]}
             padding={12}
           >
-            <Text style={[styles.limitText, { color: Colors.warning }]}>
-              ⚠️ Free plan: 1 reminder max. Upgrade to Pro for unlimited
-              reminders.
-            </Text>
+            <View style={styles.limitRow}>
+              <MaterialIcons name="warning-amber" size={16} color={Colors.warning} />
+              <Text style={[styles.limitText, { color: Colors.warning }]}>
+                Free plan: 1 reminder max. Upgrade to Pro for unlimited reminders.
+              </Text>
+            </View>
           </GlassCard>
         )}
 
@@ -345,25 +380,28 @@ export default function RemindersScreen() {
             <GlassCard
               key={reminder.id}
               style={styles.reminderCard}
-              padding={14}
+              padding={16}
             >
               <View style={styles.reminderRow}>
+                {/* Left info */}
                 <View style={styles.reminderLeft}>
-                  <Text style={[styles.reminderTime, { color: theme.text }]}>
-                    {reminder.time}
-                  </Text>
+                  <View style={styles.reminderTimeLine}>
+                    <Text style={[styles.reminderTime, { color: theme.text }]}>
+                      {reminder.time}
+                    </Text>
+                    {reminder.smartReminder && (
+                      <Text style={styles.smartBadge}>SMART</Text>
+                    )}
+                  </View>
                   <Text
-                    style={[
-                      styles.reminderLabel,
-                      { color: theme.textSecondary },
-                    ]}
+                    style={[styles.reminderLabel, { color: theme.textSecondary }]}
+                    numberOfLines={1}
                   >
                     {reminder.label}
-                    {reminder.smartReminder && (
-                      <Text style={{ color: Colors.lightBlue }}> ✨</Text>
-                    )}
                   </Text>
                 </View>
+
+                {/* Right actions */}
                 <View style={styles.reminderActions}>
                   <Switch
                     value={reminder.enabled}
@@ -376,11 +414,15 @@ export default function RemindersScreen() {
                   />
                   <TouchableOpacity
                     onPress={() => handleDeleteReminder(reminder.id)}
-                    style={{ marginLeft: 8 }}
+                    style={[
+                      styles.deleteBtn,
+                      { backgroundColor: Colors.error + "18" },
+                    ]}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <MaterialIcons
                       name="delete-outline"
-                      size={20}
+                      size={18}
                       color={Colors.error}
                     />
                   </TouchableOpacity>
@@ -545,7 +587,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 20 },
   screenTitle: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 20,
   },
   card: { marginBottom: 16, borderRadius: 20 },
@@ -561,11 +603,11 @@ const styles = StyleSheet.create({
   },
   settingTitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   settingDesc: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     marginTop: 2,
   },
   premiumHeader: {
@@ -576,7 +618,7 @@ const styles = StyleSheet.create({
   },
   premiumTitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   listHeader: {
     flexDirection: "row",
@@ -586,7 +628,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: FontSize.lg,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   addBtn: {
     width: 36,
@@ -597,42 +639,70 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   limitCard: { marginBottom: 12, borderRadius: 12, borderWidth: 1 },
+  limitRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   limitText: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
+    flex: 1,
+    lineHeight: 18,
   },
   emptyCard: { borderRadius: 20, marginBottom: 16 },
   emptyState: { alignItems: "center", paddingVertical: 32 },
   emptyEmoji: { fontSize: 40, marginBottom: 12 },
   emptyTitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 6,
   },
   emptyDesc: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     textAlign: "center",
     lineHeight: 20,
   },
-  reminderCard: { marginBottom: 8, borderRadius: 16 },
+  reminderCard: { marginBottom: 10, borderRadius: 18 },
   reminderRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  reminderLeft: {},
+  reminderLeft: { flex: 1, marginRight: 12 },
+  reminderTimeLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 3,
+  },
   reminderTime: {
     fontSize: FontSize.xl,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 2,
+    fontFamily: FontFamily.bold,
+  },
+  smartBadge: {
+    fontSize: 9,
+    fontFamily: FontFamily.bold,
+    color: Colors.lightBlue,
+    backgroundColor: Colors.lightBlue + "22",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: "hidden",
+    letterSpacing: 0.5,
   },
   reminderLabel: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   reminderActions: {
     flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  deleteBtn: {
+    marginLeft: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    justifyContent: "center",
     alignItems: "center",
   },
   timeline: {
@@ -657,11 +727,11 @@ const styles = StyleSheet.create({
   },
   timelineLabel: {
     fontSize: 10,
-    fontFamily: "Inter_300Light",
+    fontFamily: FontFamily.light,
   },
   inputLabel: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 8,
   },
   timeInput: {
@@ -674,6 +744,6 @@ const styles = StyleSheet.create({
   },
   timeInputText: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
 });

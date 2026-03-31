@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -22,19 +22,27 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
-import { AnimatedRing } from "../../components/ui/AnimatedRing";
+import { AnimatedRing, DrinkBreakdown } from "../../components/ui/AnimatedRing";
 import { AppLogoMark } from "../../components/ui/AppLogoMark";
 import { BottomSheet } from "../../components/ui/BottomSheet";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { DRINK_TYPES, QUICK_ADD_AMOUNTS } from "../../constants/drinks";
-import { BorderRadius, Colors, FontSize } from "../../constants/theme";
+import {
+  BorderRadius,
+  Colors,
+  FontFamily,
+  FontSize,
+} from "../../constants/theme";
 import { useHydration } from "../../hooks/useHydration";
 import { useStreak } from "../../hooks/useStreak";
 import { useTheme } from "../../hooks/useTheme";
 import { AppDispatch, RootState } from "../../store";
-import { fetchTodayLogsThunk } from "../../store/slices/hydrationSlice";
+import {
+  fetchTodayLogsThunk,
+  HydrationLog,
+} from "../../store/slices/hydrationSlice";
 import {
   formatAmount,
   formatTime,
@@ -43,6 +51,70 @@ import {
 } from "../../utils/dateUtils";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+function QuickAddButton({
+  amount,
+  unit,
+  onPress,
+  theme,
+  drinkColor,
+  drinkIcon,
+}: {
+  amount: number;
+  unit: string;
+  onPress: () => void;
+  theme: any;
+  drinkColor: string;
+  drinkIcon: string;
+}) {
+  const scale = useSharedValue(1);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePress = () => {
+    scale.value = withSpring(0.88, { damping: 14 }, () => {
+      scale.value = withSpring(1, { damping: 10, stiffness: 200 });
+    });
+    onPress();
+  };
+
+  const displayAmount =
+    unit === "oz" ? `${Math.round(amount * 0.033814 * 10) / 10}` : `${amount}`;
+
+  return (
+    <TouchableOpacity onPress={handlePress} activeOpacity={1}>
+      <Animated.View style={animStyle}>
+        <LinearGradient
+          colors={[drinkColor + "38", drinkColor + "10"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={[styles.quickAddBtn, { borderColor: drinkColor + "55" }]}
+        >
+          <View
+            style={[
+              styles.quickAddIconWrap,
+              { backgroundColor: drinkColor + "30" },
+            ]}
+          >
+            <MaterialIcons
+              name={drinkIcon as any}
+              size={15}
+              color={drinkColor}
+            />
+          </View>
+          <Text style={[styles.quickAddAmount, { color: theme.text }]}>
+            +{displayAmount}
+          </Text>
+          <Text style={[styles.quickAddUnit, { color: theme.textSecondary }]}>
+            {unit}
+          </Text>
+        </LinearGradient>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
 
 function CelebrationOverlay({
   visible,
@@ -111,8 +183,21 @@ export default function HomeScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [selectedDrink, setSelectedDrink] = useState("water");
+  const [quickAddDrink, setQuickAddDrink] = useState("water");
   const [showCelebration, setShowCelebration] = useState(false);
   const [prevPercent, setPrevPercent] = useState(0);
+
+  const drinkBreakdown = useMemo<DrinkBreakdown[]>(() => {
+    const totals: Record<string, number> = {};
+    todayLogs.forEach((log: HydrationLog) => {
+      totals[log.type] = (totals[log.type] || 0) + log.amount;
+    });
+    return DRINK_TYPES.filter((d) => (totals[d.id] ?? 0) > 0).map((d) => ({
+      type: d.id,
+      amount: totals[d.id] ?? 0,
+      color: d.color,
+    }));
+  }, [todayLogs]);
 
   const fabScale = useSharedValue(1);
 
@@ -132,7 +217,7 @@ export default function HomeScreen() {
 
   const handleQuickAdd = (amount: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    addLog(amount, "water");
+    addLog(amount, quickAddDrink);
   };
 
   const handleCustomLog = () => {
@@ -217,39 +302,123 @@ export default function HomeScreen() {
             formatAmount={(v) =>
               unit === "oz" ? `${Math.round(v * 0.033814 * 10) / 10}` : `${v}`
             }
+            drinkBreakdown={drinkBreakdown}
           />
           <Text style={[styles.unitLabel, { color: theme.textSecondary }]}>
             {unit === "oz" ? "oz" : "ml"}
           </Text>
+
+          {/* Drink-type colour legend */}
+          {drinkBreakdown.length > 0 && (
+            <View style={styles.drinkLegend}>
+              {drinkBreakdown.map((d) => {
+                const drink = DRINK_TYPES.find((dt) => dt.id === d.type);
+                if (!drink) return null;
+                return (
+                  <View key={d.type} style={styles.legendItem}>
+                    <View
+                      style={[
+                        styles.legendDot,
+                        { backgroundColor: drink.color },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.legendLabel,
+                        { color: theme.textSecondary },
+                      ]}
+                    >
+                      {drink.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {/* Quick Add */}
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Quick Add
-        </Text>
-        <View style={styles.quickAddRow}>
-          {QUICK_ADD_AMOUNTS.map((amount) => (
-            <TouchableOpacity
-              key={amount}
-              onPress={() => handleQuickAdd(amount)}
-              activeOpacity={0.75}
-            >
-              <GlassCard style={styles.quickAddCard} padding={12}>
-                <Text style={[styles.quickAddAmount, { color: theme.accent }]}>
-                  +
-                  {unit === "oz"
-                    ? `${Math.round(amount * 0.033814 * 10) / 10}`
-                    : amount}
-                </Text>
-                <Text
-                  style={[styles.quickAddUnit, { color: theme.textSecondary }]}
-                >
-                  {unit}
-                </Text>
-              </GlassCard>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {(() => {
+          const activeDrink =
+            DRINK_TYPES.find((d) => d.id === quickAddDrink) || DRINK_TYPES[0];
+          return (
+            <>
+              <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                Quick Add
+              </Text>
+              {/* Drink type pill selector */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.drinkPillScroll}
+                contentContainerStyle={styles.drinkPillContent}
+              >
+                {DRINK_TYPES.map((drink) => {
+                  const active = drink.id === quickAddDrink;
+                  return (
+                    <TouchableOpacity
+                      key={drink.id}
+                      onPress={() => {
+                        setQuickAddDrink(drink.id);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <View
+                        style={[
+                          styles.drinkPill,
+                          active
+                            ? {
+                                backgroundColor: drink.color + "30",
+                                borderColor: drink.color,
+                              }
+                            : {
+                                backgroundColor: theme.card,
+                                borderColor: theme.cardBorder,
+                              },
+                        ]}
+                      >
+                        <MaterialIcons
+                          name={drink.icon as any}
+                          size={14}
+                          color={active ? drink.color : theme.textSecondary}
+                        />
+                        <Text
+                          style={[
+                            styles.drinkPillLabel,
+                            {
+                              color: active ? drink.color : theme.textSecondary,
+                            },
+                          ]}
+                        >
+                          {drink.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.quickAddScroll}
+                contentContainerStyle={styles.quickAddRow}
+              >
+                {QUICK_ADD_AMOUNTS.map((amount) => (
+                  <QuickAddButton
+                    key={amount}
+                    amount={amount}
+                    unit={unit}
+                    onPress={() => handleQuickAdd(amount)}
+                    theme={theme}
+                    drinkColor={activeDrink.color}
+                    drinkIcon={activeDrink.icon}
+                  />
+                ))}
+              </ScrollView>
+            </>
+          );
+        })()}
 
         {/* Today's Logs */}
         <View style={styles.logsHeader}>
@@ -277,7 +446,7 @@ export default function HomeScreen() {
             </View>
           </GlassCard>
         ) : (
-          todayLogs.map((log) => {
+          todayLogs.map((log: HydrationLog) => {
             const drink =
               DRINK_TYPES.find((d) => d.id === log.type) || DRINK_TYPES[0];
             return (
@@ -329,9 +498,7 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* FAB — positioned above the floating tab bar, respects home-indicator safe area */}
-      <Animated.View
-        style={[styles.fab, styles.fabRing, { bottom: fabBottom }, fabStyle]}
-      >
+      <Animated.View style={[styles.fab, { bottom: fabBottom }, fabStyle]}>
         <TouchableOpacity
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -382,7 +549,7 @@ export default function HomeScreen() {
             <Text
               style={{
                 color: theme.textSecondary,
-                fontFamily: "Inter_400Regular",
+                fontFamily: FontFamily.regular,
               }}
             >
               {unit}
@@ -470,19 +637,19 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontSize: FontSize.xl,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     marginBottom: 2,
   },
   date: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   streakBadge: {
     borderRadius: 16,
   },
   streakText: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   ringContainer: {
     alignItems: "center",
@@ -490,31 +657,92 @@ const styles = StyleSheet.create({
   },
   unitLabel: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     marginTop: 4,
+  },
+  drinkLegend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 10,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.regular,
   },
   sectionTitle: {
     fontSize: FontSize.lg,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 12,
+  },
+  drinkPillScroll: {
+    marginBottom: 12,
+    marginHorizontal: -20,
+  },
+  drinkPillContent: {
+    paddingHorizontal: 20,
+    gap: 8,
+    flexDirection: "row",
+  },
+  drinkPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+  },
+  drinkPillLabel: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.semibold,
+  },
+  quickAddScroll: {
+    marginHorizontal: -20,
+    marginBottom: 28,
   },
   quickAddRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: 28,
+    paddingHorizontal: 20,
+    paddingVertical: 2,
   },
-  quickAddCard: {
+  quickAddBtn: {
     alignItems: "center",
-    minWidth: 72,
-    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    gap: 5,
+    width: 78,
+  },
+  quickAddIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 2,
   },
   quickAddAmount: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
   },
   quickAddUnit: {
     fontSize: FontSize.xs,
-    fontFamily: "Inter_300Light",
+    fontFamily: FontFamily.regular,
+    letterSpacing: 0.2,
   },
   logsHeader: {
     flexDirection: "row",
@@ -524,7 +752,7 @@ const styles = StyleSheet.create({
   },
   logCount: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   logItem: {
     marginBottom: 8,
@@ -544,15 +772,15 @@ const styles = StyleSheet.create({
   },
   logDrink: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   logTime: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
   },
   logAmount: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
   },
   deleteBtn: {
     padding: 4,
@@ -567,24 +795,18 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     textAlign: "center",
     lineHeight: 20,
   },
   fab: {
     position: "absolute",
     right: 24,
-  },
-  fabRing: {
-    borderRadius: 32,
-    borderWidth: 1.5,
-    borderColor: "rgba(255, 255, 255, 0.35)",
-    backgroundColor: "transparent",
   },
   fabInner: {
     borderRadius: 32,
@@ -598,7 +820,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
     marginBottom: 8,
   },
   amountInput: {
@@ -613,7 +835,7 @@ const styles = StyleSheet.create({
   amountInputText: {
     flex: 1,
     fontSize: 24,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
   },
   drinkGrid: {
     flexDirection: "row",
@@ -630,11 +852,11 @@ const styles = StyleSheet.create({
   },
   drinkOptionLabel: {
     fontSize: FontSize.sm,
-    fontFamily: "Inter_600SemiBold",
+    fontFamily: FontFamily.semibold,
   },
   drinkMultiplier: {
     fontSize: 10,
-    fontFamily: "Inter_300Light",
+    fontFamily: FontFamily.light,
   },
   celebrationBg: {
     ...StyleSheet.absoluteFillObject,
@@ -656,7 +878,7 @@ const styles = StyleSheet.create({
   },
   celebrationTitle: {
     fontSize: 28,
-    fontFamily: "Inter_700Bold",
+    fontFamily: FontFamily.bold,
     color: Colors.offWhite,
     marginBottom: 6,
   },
@@ -667,7 +889,7 @@ const styles = StyleSheet.create({
   },
   celebrationSub: {
     fontSize: FontSize.base,
-    fontFamily: "Inter_400Regular",
+    fontFamily: FontFamily.regular,
     color: "rgba(247,248,240,0.7)",
     flexShrink: 1,
   },

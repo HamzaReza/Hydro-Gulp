@@ -3,146 +3,213 @@ import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Tabs } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";
 
 const TAB_ITEMS = [
-  { name: "index", label: "Home", icon: "water-drop" as const },
-  { name: "history", label: "History", icon: "history" as const },
-  { name: "analytics", label: "Analytics", icon: "bar-chart" as const },
-  { name: "reminders", label: "Reminders", icon: "notifications" as const },
-  { name: "profile", label: "Profile", icon: "person" as const },
+  { name: "index",     icon: "water-drop"    as const },
+  { name: "history",   icon: "history"        as const },
+  { name: "analytics", icon: "bar-chart"      as const },
+  { name: "reminders", icon: "notifications"  as const },
+  { name: "profile",   icon: "person"         as const },
 ];
 
-function TabBarIcon({
-  name,
-  label,
+// ─── Single tab button ───────────────────────────────────────────────────────
+
+function TabButton({
+  icon,
   focused,
-  color,
+  onPress,
+  accentColor,
+  inactiveColor,
 }: {
-  name: any;
-  label: string;
+  icon: React.ComponentProps<typeof MaterialIcons>["name"];
   focused: boolean;
-  color: string;
+  onPress: () => void;
+  accentColor: string;
+  inactiveColor: string;
 }) {
   const scale = useSharedValue(1);
+  const glow  = useSharedValue(0);
 
-  const animStyle = useAnimatedStyle(() => ({
+  React.useEffect(() => {
+    if (focused) {
+      scale.value = withSpring(1.15, { damping: 12, stiffness: 200 }, () => {
+        scale.value = withSpring(1, { damping: 12 });
+      });
+      glow.value = withTiming(1, { duration: 200 });
+    } else {
+      glow.value = withTiming(0, { duration: 200 });
+    }
+  }, [focused]);
+
+  const iconStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
-  const handlePress = () => {
-    scale.value = withSpring(0.85, { damping: 10 }, () => {
-      scale.value = withSpring(1, { damping: 10 });
-    });
-  };
+  const bgStyle = useAnimatedStyle(() => ({
+    opacity: glow.value,
+    transform: [{ scale: 0.6 + glow.value * 0.4 }],
+  }));
 
   return (
-    <Animated.View style={[styles.tabItem, animStyle]}>
-      <MaterialIcons name={name} size={22} color={color} />
-      <Text
-        style={[
-          styles.tabLabel,
-          {
-            color,
-            fontFamily: focused ? "Inter_600SemiBold" : "Inter_400Regular",
-          },
-        ]}
-      >
-        {label}
-      </Text>
-    </Animated.View>
+    <Pressable
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={styles.tabButton}
+      hitSlop={8}
+    >
+      <Animated.View
+        style={[styles.activePill, { backgroundColor: accentColor + "22" }, bgStyle]}
+      />
+      <Animated.View style={iconStyle}>
+        <MaterialIcons
+          name={icon}
+          size={22}
+          color={focused ? accentColor : inactiveColor}
+        />
+      </Animated.View>
+    </Pressable>
   );
 }
 
-export default function TabsLayout() {
-  const theme = useTheme();
+// ─── Custom tab bar ──────────────────────────────────────────────────────────
+
+function CustomTabBar({ state, navigation }: any) {
+  const theme  = useTheme();
   const insets = useSafeAreaInsets();
 
   return (
-    <Tabs
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarStyle: {
-          position: "absolute",
-          bottom: insets.bottom + 12,
-          left: 20,
-          right: 20,
-          height: 64,
-          borderRadius: 24,
-          borderTopWidth: 0,
-          elevation: 0,
-          backgroundColor: "transparent",
-          shadowColor: "transparent",
-        },
-        tabBarBackground: () => (
-          <View style={[styles.tabBarBg, { borderColor: theme.tabBarBorder }]}>
-            <BlurView
-              tint={theme.blurTint}
-              intensity={80}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <View
-              style={[
-                StyleSheet.absoluteFillObject,
-                { backgroundColor: theme.tabBar, borderRadius: 24 },
-              ]}
-            />
-          </View>
-        ),
-        tabBarActiveTintColor: theme.accent,
-        tabBarInactiveTintColor: theme.textSecondary + "80",
-        tabBarShowLabel: false,
-        tabBarItemStyle: {
-          height: 64,
-        },
-      })}
+    <View
+      style={[
+        styles.tabBarOuter,
+        { bottom: Math.max(insets.bottom, 16) + 4 },
+      ]}
+      pointerEvents="box-none"
     >
-      {TAB_ITEMS.map((tab) => (
-        <Tabs.Screen
-          key={tab.name}
-          name={tab.name}
-          options={{
-            tabBarIcon: ({ focused, color }) => (
-              <TabBarIcon
-                name={tab.icon}
-                label={tab.label}
-                focused={focused}
-                color={color}
-              />
-            ),
-          }}
-          listeners={{
-            tabPress: () => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            },
+      <View style={[styles.tabBarPill, { borderColor: theme.tabBarBorder }]}>
+        {/* Blur + tinted backing */}
+        <BlurView
+          tint={theme.blurTint}
+          intensity={70}
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        />
+        <View
+          style={{
+            position: "absolute",
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: theme.tabBar,
+            borderRadius: 36,
           }}
         />
+
+        {/* Tab buttons */}
+        {TAB_ITEMS.map((tab, index) => {
+          const focused = state.index === index;
+          return (
+            <TabButton
+              key={tab.name}
+              icon={tab.icon}
+              focused={focused}
+              accentColor={theme.accent}
+              inactiveColor={theme.textSecondary + "70"}
+              onPress={() => {
+                const event = navigation.emit({
+                  type: "tabPress",
+                  target: state.routes[index].key,
+                  canPreventDefault: true,
+                });
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(state.routes[index].name);
+                }
+              }}
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+// ─── Layout ──────────────────────────────────────────────────────────────────
+
+export default function TabsLayout() {
+  return (
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <CustomTabBar {...props} />}
+    >
+      {TAB_ITEMS.map((tab) => (
+        <Tabs.Screen key={tab.name} name={tab.name} />
       ))}
     </Tabs>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
+const PILL_HEIGHT = 62;
+
 const styles = StyleSheet.create({
-  tabBarBg: {
-    flex: 1,
-    borderRadius: 24,
+  tabBarOuter: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  tabBarPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: PILL_HEIGHT,
+    paddingHorizontal: 10,
+    borderRadius: 36,
     borderWidth: 1,
     overflow: "hidden",
+    // shadow
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.18,
+        shadowRadius: 20,
+      },
+      android: { elevation: 12 },
+    }),
+    // width — not full-screen, feels floating
+    width: 300,
   },
-  tabItem: {
+  tabButton: {
+    flex: 1,
+    height: PILL_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
   },
-  tabLabel: {
-    fontSize: 10,
-    letterSpacing: 0.2,
+  activePill: {
+    position: "absolute",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  glowDot: {
+    position: "absolute",
+    bottom: 9,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
 });
