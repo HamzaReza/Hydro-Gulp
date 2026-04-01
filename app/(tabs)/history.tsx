@@ -15,6 +15,7 @@ import { WeeklyBarChart } from "../../components/charts/WeeklyBarChart";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { PremiumLock } from "../../components/ui/PremiumLock";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
+import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import { DRINK_TYPES } from "../../constants/drinks";
 import {
   BorderRadius,
@@ -30,14 +31,15 @@ import { AppDispatch, RootState } from "../../store";
 import { fetchLogsForRangeThunk } from "../../store/slices/hydrationSlice";
 import {
   formatAmount,
+  formatDate,
   formatDisplayDate,
-  getLast30Days,
+  getLast31Days,
   getLast7Days,
 } from "../../utils/dateUtils";
 
 type ViewMode = "week" | "month" | "year";
 
-export default function HistoryScreen() {
+function HistoryScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
@@ -49,10 +51,14 @@ export default function HistoryScreen() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [heatmapYM, setHeatmapYM] = useState(() => {
+    const d = new Date();
+    return { y: d.getFullYear(), m: d.getMonth() };
+  });
 
   useEffect(() => {
     if (uid) {
-      const dates = getLast30Days();
+      const dates = getLast31Days();
       dispatch(
         fetchLogsForRangeThunk({
           uid,
@@ -62,6 +68,19 @@ export default function HistoryScreen() {
       );
     }
   }, [uid]);
+
+  useEffect(() => {
+    if (!uid) return;
+    const start = new Date(heatmapYM.y, heatmapYM.m, 1);
+    const end = new Date(heatmapYM.y, heatmapYM.m + 1, 0);
+    dispatch(
+      fetchLogsForRangeThunk({
+        uid,
+        startDate: formatDate(start),
+        endDate: formatDate(end),
+      }),
+    );
+  }, [uid, heatmapYM.y, heatmapYM.m, dispatch]);
 
   useEffect(() => {
     if (uid && viewMode === "year") {
@@ -101,7 +120,7 @@ export default function HistoryScreen() {
     });
   };
 
-  const historyDates = viewMode === "week" ? getLast7Days() : getLast30Days();
+  const historyDates = viewMode === "week" ? getLast7Days() : getLast31Days();
   const datesWithLogs = historyDates.filter(
     (d) => logs[d] && logs[d].length > 0,
   );
@@ -162,7 +181,7 @@ export default function HistoryScreen() {
             {viewMode === "week"
               ? "7-Day Intake"
               : viewMode === "month"
-                ? "30-Day Intake"
+                ? "31-Day Intake"
                 : `${now.getFullYear()} Monthly Overview`}
           </Text>
           {viewMode === "week" && (
@@ -175,7 +194,7 @@ export default function HistoryScreen() {
           )}
           {viewMode === "month" && (
             <WeeklyBarChart
-              data={getLast30Days().map((date) => ({
+              data={getLast31Days().map((date) => ({
                 date,
                 total: (logs[date] || []).reduce(
                   (sum, l) => sum + l.hydrationValue,
@@ -191,7 +210,7 @@ export default function HistoryScreen() {
           {viewMode === "year" && (
             <WeeklyBarChart
               data={getYearlyData()}
-              goal={goal * 30}
+              goal={goal * 31}
               labelType="monthName"
               showGoalLine={false}
               unit={unit}
@@ -222,10 +241,12 @@ export default function HistoryScreen() {
         {isPremium ? (
           <GlassCard style={styles.chartCard}>
             <HeatmapCalendar
-              year={now.getFullYear()}
-              month={now.getMonth()}
+              year={heatmapYM.y}
+              month={heatmapYM.m}
               data={calendarData}
               goal={goal}
+              maxMonthsBack={2}
+              onMonthChange={(y, m) => setHeatmapYM({ y, m })}
             />
           </GlassCard>
         ) : (
@@ -235,10 +256,12 @@ export default function HistoryScreen() {
               description="Unlock Pro to see your hydration heatmap calendar."
             >
               <HeatmapCalendar
-                year={now.getFullYear()}
-                month={now.getMonth()}
+                year={heatmapYM.y}
+                month={heatmapYM.m}
                 data={calendarData}
                 goal={goal}
+                maxMonthsBack={2}
+                onMonthChange={(y, m) => setHeatmapYM({ y, m })}
               />
             </PremiumLock>
           </GlassCard>
@@ -516,3 +539,5 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.semibold,
   },
 });
+
+export default withTabUnmountOnBlur(HistoryScreen);

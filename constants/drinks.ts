@@ -1,7 +1,12 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import type { ComponentProps } from "react";
+
+export type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+
 export interface DrinkType {
   id: string;
   label: string;
-  icon: string;
+  icon: MaterialIconName;
   hydrationMultiplier: number;
   color: string;
 }
@@ -38,9 +43,9 @@ export const DRINK_TYPES: DrinkType[] = [
   {
     id: "sports",
     label: "Sports",
-    icon: "sports-bar",
+    icon: "directions-run",
     hydrationMultiplier: 0.95,
-    color: "#7AAACE",
+    color: "#6D92AC",
   },
 ];
 

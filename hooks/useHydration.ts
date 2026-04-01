@@ -1,5 +1,5 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { RootState, AppDispatch } from '../store';
 import {
   selectTodayLogs,
@@ -11,6 +11,7 @@ import {
   deleteLogThunk,
   HydrationLog,
 } from '../store/slices/hydrationSlice';
+import { getDrinkById } from '../constants/drinks';
 import { getTodayString } from '../utils/dateUtils';
 
 export const useHydration = () => {
@@ -23,13 +24,20 @@ export const useHydration = () => {
   const unit = useSelector((state: RootState) => state.profile.unit);
   const syncError = useSelector((state: RootState) => state.hydration.syncError);
 
-  const progressPercent = goal > 0 ? (todayTotal / goal) * 100 : 0;
+  const rawTotal = useMemo(
+    () => todayLogs.reduce((sum: number, log: HydrationLog) => sum + log.amount, 0),
+    [todayLogs]
+  );
+  const progressPercent = goal > 0 ? (rawTotal / goal) * 100 : 0;
 
   const addLog = useCallback(
     (amount: number, type: string = 'water') => {
       if (!uid) return;
       const today = getTodayString();
       const tempId = `temp-${Date.now()}`;
+      const hydrationValue = Math.round(
+        amount * getDrinkById(type).hydrationMultiplier,
+      );
       const log: HydrationLog = {
         id: tempId,
         amount,
@@ -37,7 +45,7 @@ export const useHydration = () => {
         type,
         timestamp: Date.now(),
         date: today,
-        hydrationValue: amount,
+        hydrationValue,
       };
 
       dispatch(optimisticAddLog(log));
@@ -58,6 +66,7 @@ export const useHydration = () => {
   return {
     todayLogs,
     todayTotal,
+    rawTotal,
     weeklyData,
     goal,
     unit,

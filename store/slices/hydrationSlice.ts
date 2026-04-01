@@ -12,7 +12,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { getTodayString, getLast7Days, getLast30Days } from '../../utils/dateUtils';
+import { getTodayString, getLast7Days, getLast31Days } from '../../utils/dateUtils';
 import { getDrinkById } from '../../constants/drinks';
 
 export interface HydrationLog {
@@ -285,7 +285,7 @@ export const selectWeeklyData = createSelector(
 export const selectMonthlyData = createSelector(
   [(state: any) => state.hydration.logs],
   (logs) => {
-    return getLast30Days().map((date) => ({
+    return getLast31Days().map((date) => ({
       date,
       total: (logs[date] || []).reduce((sum: number, log: HydrationLog) => sum + log.hydrationValue, 0),
     }));

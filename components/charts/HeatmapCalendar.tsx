@@ -1,14 +1,17 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { useTheme } from '../../hooks/useTheme';
-import { Colors, FontFamily, FontSize } from '../../constants/theme';
-import { getDatesInMonth } from '../../utils/dateUtils';
+import { MaterialIcons } from "@expo/vector-icons";
+import React from "react";
+import { Text, TouchableOpacity, View, StyleSheet } from "react-native";
+import { useTheme } from "../../hooks/useTheme";
+import { FontFamily, FontSize } from "../../constants/theme";
+import { getDatesInMonth } from "../../utils/dateUtils";
 
 interface HeatmapCalendarProps {
   year: number;
   month: number; // 0-indexed
   data: Record<string, number>; // date -> total ml
   goal: number;
+  maxMonthsBack?: number;
+  onMonthChange: (year: number, month: number) => void;
 }
 
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -18,6 +21,8 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
   month,
   data,
   goal,
+  maxMonthsBack = 2,
+  onMonthChange,
 }) => {
   const theme = useTheme();
   const dates = getDatesInMonth(year, month);
@@ -50,18 +55,73 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
     weeks.push(week);
   }
 
-  const monthName = new Date(year, month, 1).toLocaleString('default', {
-    month: 'long',
-    year: 'numeric',
+  const monthName = new Date(year, month, 1).toLocaleString("default", {
+    month: "long",
+    year: "numeric",
   });
+
+  const now = new Date();
+  const currentY = now.getFullYear();
+  const currentM = now.getMonth();
+  const minAnchor = new Date(currentY, currentM - maxMonthsBack, 1);
+  const minY = minAnchor.getFullYear();
+  const minM = minAnchor.getMonth();
+
+  const visibleKey = year * 12 + month;
+  const minKey = minY * 12 + minM;
+  const maxKey = currentY * 12 + currentM;
+  const canGoPrev = visibleKey > minKey;
+  const canGoNext = visibleKey < maxKey;
+
+  const shiftMonth = (delta: number) => {
+    const d = new Date(year, month + delta, 1);
+    onMonthChange(d.getFullYear(), d.getMonth());
+  };
 
   return (
     <View>
-      <Text style={[styles.monthTitle, { color: theme.text }]}>{monthName}</Text>
+      <View style={styles.monthHeader}>
+        <TouchableOpacity
+          style={styles.monthNavBtn}
+          onPress={() => shiftMonth(-1)}
+          disabled={!canGoPrev}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Previous month"
+        >
+          <MaterialIcons
+            name="chevron-left"
+            size={22}
+            color={theme.accent}
+            style={{ opacity: canGoPrev ? 1 : 0.35 }}
+          />
+        </TouchableOpacity>
+        <Text style={[styles.monthTitle, { color: theme.text, flex: 1 }]}>
+          {monthName}
+        </Text>
+        <TouchableOpacity
+          style={styles.monthNavBtn}
+          onPress={() => shiftMonth(1)}
+          disabled={!canGoNext}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Next month"
+        >
+          <MaterialIcons
+            name="chevron-right"
+            size={22}
+            color={theme.accent}
+            style={{ opacity: canGoNext ? 1 : 0.35 }}
+          />
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.dayLabels}>
         {DAY_LABELS.map((d) => (
-          <Text key={d} style={[styles.dayLabel, { color: theme.textSecondary }]}>
+          <Text
+            key={d}
+            style={[styles.dayLabel, { color: theme.textSecondary }]}
+          >
             {d}
           </Text>
         ))}
@@ -102,7 +162,9 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
       ))}
 
       <View style={styles.legend}>
-        <Text style={[styles.legendLabel, { color: theme.textSecondary }]}>Less</Text>
+        <Text style={[styles.legendLabel, { color: theme.textSecondary }]}>
+          Less
+        </Text>
         {[0, 0.25, 0.5, 0.75, 1].map((v) => (
           <View
             key={v}
@@ -116,17 +178,30 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
             ]}
           />
         ))}
-        <Text style={[styles.legendLabel, { color: theme.textSecondary }]}>More</Text>
+        <Text style={[styles.legendLabel, { color: theme.textSecondary }]}>
+          More
+        </Text>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  monthHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  monthNavBtn: {
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   monthTitle: {
     fontSize: FontSize.base,
     fontFamily: FontFamily.semibold,
-    marginBottom: 12,
+    textAlign: "center",
   },
   dayLabels: {
     flexDirection: 'row',

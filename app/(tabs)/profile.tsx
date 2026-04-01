@@ -22,6 +22,7 @@ import { AppLogoMark } from "../../components/ui/AppLogoMark";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
+import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import { Brand } from "../../constants/branding";
 import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 import { usePremium } from "../../hooks/usePremium";
@@ -119,7 +120,7 @@ function SettingsRow({
   );
 }
 
-export default function ProfileScreen() {
+function ProfileScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
@@ -778,3 +779,5 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.semibold,
   },
 });
+
+export default withTabUnmountOnBlur(ProfileScreen);

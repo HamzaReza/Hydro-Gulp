@@ -7,6 +7,7 @@ import { DonutChart } from "../../components/charts/DonutChart";
 import { WeeklyBarChart } from "../../components/charts/WeeklyBarChart";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { PremiumLock } from "../../components/ui/PremiumLock";
+import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import { DRINK_TYPES } from "../../constants/drinks";
 import { Colors, FontFamily, FontSize } from "../../constants/theme";
 import { useHydration } from "../../hooks/useHydration";
@@ -19,7 +20,7 @@ import {
   HydrationLog,
 } from "../../store/slices/hydrationSlice";
 import {
-  getLast30Days,
+  getLast31Days,
   getLast7Days,
   getTimeOfDay,
 } from "../../utils/dateUtils";
@@ -31,7 +32,7 @@ function AnalyticsContent() {
   const logs = useSelector((state: RootState) => state.hydration.logs);
 
   const last7 = getLast7Days();
-  const last30 = getLast30Days();
+  const last31 = getLast31Days();
 
   const avg7 = (() => {
     const total = last7.reduce(
@@ -46,8 +47,8 @@ function AnalyticsContent() {
     return Math.round(total / 7);
   })();
 
-  const avg30 = (() => {
-    const total = last30.reduce(
+  const avg31 = (() => {
+    const total = last31.reduce(
       (s, d) =>
         s +
         (logs[d] || []).reduce(
@@ -56,12 +57,12 @@ function AnalyticsContent() {
         ),
       0,
     );
-    return Math.round(total / 30);
+    return Math.round(total / 31);
   })();
 
   // Drink type breakdown
   const drinkTotals: Record<string, number> = {};
-  last30.forEach((date) => {
+  last31.forEach((date) => {
     (logs[date] || []).forEach((log: HydrationLog) => {
       drinkTotals[log.type] = (drinkTotals[log.type] || 0) + log.amount;
     });
@@ -77,7 +78,7 @@ function AnalyticsContent() {
 
   // Time of day breakdown
   const timeOfDayTotals = { morning: 0, afternoon: 0, evening: 0, night: 0 };
-  last30.forEach((date) => {
+  last31.forEach((date) => {
     (logs[date] || []).forEach((log: HydrationLog) => {
       const period = getTimeOfDay(log.timestamp);
       timeOfDayTotals[period] += log.hydrationValue;
@@ -103,7 +104,7 @@ function AnalyticsContent() {
   // Insights
   const weekdayTotals = [0, 0, 0, 0, 0, 0, 0];
   const weekdayCounts = [0, 0, 0, 0, 0, 0, 0];
-  last30.forEach((date) => {
+  last31.forEach((date) => {
     const dow = new Date(date + "T00:00:00").getDay();
     const total = (logs[date] || []).reduce(
       (s: number, l: HydrationLog) => s + l.hydrationValue,
@@ -137,9 +138,9 @@ function AnalyticsContent() {
           </Text>
         </GlassCard>
         <GlassCard style={styles.statCard} padding={16}>
-          <Text style={[styles.statValue, { color: theme.text }]}>{avg30}</Text>
+          <Text style={[styles.statValue, { color: theme.text }]}>{avg31}</Text>
           <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
-            Avg (30d)
+            Avg (31d)
           </Text>
           <Text style={[styles.statUnit, { color: theme.textSecondary }]}>
             ml/day
@@ -170,7 +171,7 @@ function AnalyticsContent() {
       {donutSegments.length > 0 && (
         <GlassCard style={styles.card}>
           <Text style={[styles.cardTitle, { color: theme.text }]}>
-            Drink Breakdown (30d)
+            Drink Breakdown (31d)
           </Text>
           <DonutChart
             segments={donutSegments}
@@ -267,7 +268,7 @@ function AnalyticsContent() {
   );
 }
 
-export default function AnalyticsScreen() {
+function AnalyticsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
@@ -276,7 +277,7 @@ export default function AnalyticsScreen() {
 
   useEffect(() => {
     if (uid && isPremium) {
-      const dates = getLast30Days();
+      const dates = getLast31Days();
       dispatch(
         fetchLogsForRangeThunk({
           uid,
@@ -420,3 +421,5 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
 });
+
+export default withTabUnmountOnBlur(AnalyticsScreen);

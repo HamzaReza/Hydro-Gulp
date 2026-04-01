@@ -28,7 +28,12 @@ import { BottomSheet } from "../../components/ui/BottomSheet";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
-import { DRINK_TYPES, QUICK_ADD_AMOUNTS } from "../../constants/drinks";
+import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
+import {
+  DRINK_TYPES,
+  MaterialIconName,
+  QUICK_ADD_AMOUNTS,
+} from "../../constants/drinks";
 import {
   BorderRadius,
   Colors,
@@ -40,12 +45,13 @@ import { useStreak } from "../../hooks/useStreak";
 import { useTheme } from "../../hooks/useTheme";
 import { AppDispatch, RootState } from "../../store";
 import {
-  fetchTodayLogsThunk,
+  fetchLogsForRangeThunk,
   HydrationLog,
 } from "../../store/slices/hydrationSlice";
 import {
   formatAmount,
   formatTime,
+  getDateDaysAgo,
   getGreeting,
   getTodayString,
 } from "../../utils/dateUtils";
@@ -65,7 +71,7 @@ function QuickAddButton({
   onPress: () => void;
   theme: any;
   drinkColor: string;
-  drinkIcon: string;
+  drinkIcon: MaterialIconName;
 }) {
   const scale = useSharedValue(1);
 
@@ -98,11 +104,7 @@ function QuickAddButton({
               { backgroundColor: drinkColor + "30" },
             ]}
           >
-            <MaterialIcons
-              name={drinkIcon as any}
-              size={15}
-              color={drinkColor}
-            />
+            <MaterialIcons name={drinkIcon} size={15} color={drinkColor} />
           </View>
           <Text style={[styles.quickAddAmount, { color: theme.text }]}>
             +{displayAmount}
@@ -146,7 +148,7 @@ function CelebrationOverlay({
   if (!visible) return null;
 
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <View style={styles.celebrationBg}>
         <Animated.View style={[styles.celebrationContent, style]}>
           <Text style={styles.celebrationEmoji}>🎉</Text>
@@ -161,14 +163,14 @@ function CelebrationOverlay({
   );
 }
 
-export default function HomeScreen() {
+function HomeScreen() {
   const theme = useTheme();
   // Only insets.bottom is needed — ScreenWrapper's SafeAreaView handles the top.
   const { bottom: bottomInset } = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
   const {
     todayLogs,
-    todayTotal,
+    rawTotal,
     goal,
     unit,
     progressPercent,
@@ -185,25 +187,36 @@ export default function HomeScreen() {
   const [selectedDrink, setSelectedDrink] = useState("water");
   const [quickAddDrink, setQuickAddDrink] = useState("water");
   const [showCelebration, setShowCelebration] = useState(false);
-  const [prevPercent, setPrevPercent] = useState(0);
+  const [prevPercent, setPrevPercent] = useState(progressPercent);
 
   const drinkBreakdown = useMemo<DrinkBreakdown[]>(() => {
+    // Process logs oldest-first, accumulate per drink type, stop at goal.
+    // This ensures ring segments reflect only what contributed to reaching the goal.
+    const sorted = [...todayLogs].sort(
+      (a: HydrationLog, b: HydrationLog) => a.timestamp - b.timestamp,
+    );
     const totals: Record<string, number> = {};
-    todayLogs.forEach((log: HydrationLog) => {
-      totals[log.type] = (totals[log.type] || 0) + log.amount;
-    });
+    let cumulative = 0;
+    for (const log of sorted) {
+      if (cumulative >= goal) break;
+      const contribution = Math.min(log.amount, goal - cumulative);
+      totals[log.type] = (totals[log.type] || 0) + contribution;
+      cumulative += contribution;
+    }
     return DRINK_TYPES.filter((d) => (totals[d.id] ?? 0) > 0).map((d) => ({
       type: d.id,
       amount: totals[d.id] ?? 0,
       color: d.color,
     }));
-  }, [todayLogs]);
+  }, [todayLogs, goal]);
 
   const fabScale = useSharedValue(1);
 
   useEffect(() => {
     if (uid) {
-      dispatch(fetchTodayLogsThunk({ uid, date: getTodayString() }));
+      const endDate = getTodayString();
+      const startDate = getDateDaysAgo(30);
+      dispatch(fetchLogsForRangeThunk({ uid, startDate, endDate }));
     }
   }, [uid]);
 
@@ -296,7 +309,7 @@ export default function HomeScreen() {
           <AnimatedRing
             progress={progressPercent}
             size={Math.min(SCREEN_WIDTH - 80, 260)}
-            currentAmount={todayTotal}
+            currentAmount={rawTotal}
             goal={goal}
             unit={unit}
             formatAmount={(v) =>
@@ -379,7 +392,7 @@ export default function HomeScreen() {
                         ]}
                       >
                         <MaterialIcons
-                          name={drink.icon as any}
+                          name={drink.icon}
                           size={14}
                           color={active ? drink.color : theme.textSecondary}
                         />
@@ -460,7 +473,7 @@ export default function HomeScreen() {
                       ]}
                     >
                       <MaterialIcons
-                        name={drink.icon as any}
+                        name={drink.icon}
                         size={20}
                         color={drink.color}
                       />
@@ -587,7 +600,7 @@ export default function HomeScreen() {
                   ]}
                 >
                   <MaterialIcons
-                    name={drink.icon as any}
+                    name={drink.icon}
                     size={22}
                     color={drink.color}
                   />
@@ -894,3 +907,5 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 });
+
+export default withTabUnmountOnBlur(HomeScreen);

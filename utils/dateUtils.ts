@@ -19,8 +19,8 @@ export const getLast7Days = (): string[] => {
   return Array.from({ length: 7 }, (_, i) => getDateDaysAgo(6 - i));
 };
 
-export const getLast30Days = (): string[] => {
-  return Array.from({ length: 30 }, (_, i) => getDateDaysAgo(29 - i));
+export const getLast31Days = (): string[] => {
+  return Array.from({ length: 31 }, (_, i) => getDateDaysAgo(30 - i));
 };
 
 export const getGreeting = (name: string): string => {

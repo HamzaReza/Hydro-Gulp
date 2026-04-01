@@ -18,6 +18,7 @@ import { BottomSheet } from "../../components/ui/BottomSheet";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
+import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 import { db } from "../../firebase";
 import { usePremium } from "../../hooks/usePremium";
@@ -38,7 +39,7 @@ import {
   scheduleReminder,
 } from "../../utils/notificationUtils";
 
-export default function RemindersScreen() {
+function RemindersScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
@@ -376,7 +377,7 @@ export default function RemindersScreen() {
             </View>
           </GlassCard>
         ) : (
-          reminders.map((reminder) => (
+          [...reminders].sort((a, b) => a.time.localeCompare(b.time)).map((reminder) => (
             <GlassCard
               key={reminder.id}
               style={styles.reminderCard}
@@ -747,3 +748,5 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
   },
 });
+
+export default withTabUnmountOnBlur(RemindersScreen);

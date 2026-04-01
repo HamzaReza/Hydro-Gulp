@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { memo, useEffect, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, {
   Easing,
@@ -104,6 +104,8 @@ function WavyArc({
   );
 }
 
+const WavyArcMemo = memo(WavyArc);
+
 // ─── Fallback single arc (when no drink data) ────────────────────────────────
 
 function FallbackArc({
@@ -168,6 +170,8 @@ function FallbackArc({
   );
 }
 
+const FallbackArcMemo = memo(FallbackArc);
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export const AnimatedRing: React.FC<AnimatedRingProps> = ({
@@ -208,18 +212,16 @@ export const AnimatedRing: React.FC<AnimatedRingProps> = ({
     lengthFraction: number;
     color: string;
   };
-  const segments: Segment[] = [];
-  if (drinkBreakdown.length > 0 && goal > 0) {
+  const segments = useMemo<Segment[]>(() => {
+    if (drinkBreakdown.length === 0 || goal <= 0) return [];
+    const result: Segment[] = [];
     let cumulative = 0;
     for (const d of drinkBreakdown) {
       if (d.amount <= 0) continue;
       const fraction = d.amount / goal;
-      const clamped = Math.max(
-        0,
-        Math.min(fraction, totalProgress - cumulative),
-      );
+      const clamped = Math.max(0, Math.min(fraction, totalProgress - cumulative));
       if (clamped > 0.001) {
-        segments.push({
+        result.push({
           type: d.type,
           startFraction: cumulative,
           lengthFraction: clamped,
@@ -228,7 +230,9 @@ export const AnimatedRing: React.FC<AnimatedRingProps> = ({
         cumulative += clamped;
       }
     }
-  }
+    return result;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drinkBreakdown, totalProgress, goal]);
 
   const goalReached = currentAmount >= goal;
   const exceededAmount = goalReached ? currentAmount - goal : 0;
@@ -249,7 +253,7 @@ export const AnimatedRing: React.FC<AnimatedRingProps> = ({
         {/* Wavy arcs — one per drink type */}
         {segments.length > 0 ? (
           segments.map((seg) => (
-            <WavyArc
+            <WavyArcMemo
               key={seg.type}
               cx={cx}
               cy={cy}
@@ -262,7 +266,7 @@ export const AnimatedRing: React.FC<AnimatedRingProps> = ({
             />
           ))
         ) : (
-          <FallbackArc
+          <FallbackArcMemo
             cx={cx}
             cy={cy}
             radius={radius}
