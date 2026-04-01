@@ -1,16 +1,54 @@
 import { Brand } from "@/constants/branding";
-import { router } from "expo-router";
+import { FontAwesome, MaterialIcons } from "@expo/vector-icons";
 import React from "react";
-import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
+import { useDispatch, useSelector } from "react-redux";
 import LogoImage from "../../assets/images/logo.png";
 import { AppLogoMark } from "../../components/ui/AppLogoMark";
-import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
-import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
-
-const { width } = Dimensions.get("window");
+import {
+  BorderRadius,
+  Colors,
+  FontFamily,
+  FontSize,
+} from "../../constants/theme";
+import { AppDispatch, RootState } from "../../store";
+import { clearError, googleSignInThunk } from "../../store/slices/authSlice";
 
 export default function WelcomeScreen() {
+  const dispatch = useDispatch<AppDispatch>();
+  const { loading, error } = useSelector((state: RootState) => state.auth);
+
+  const shakeX = useSharedValue(0);
+
+  const shakeForm = () => {
+    shakeX.value = withSequence(
+      withTiming(-10, { duration: 60 }),
+      withTiming(10, { duration: 60 }),
+      withTiming(-8, { duration: 60 }),
+      withTiming(8, { duration: 60 }),
+      withTiming(0, { duration: 60 }),
+    );
+  };
+
+  const formStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }],
+  }));
+
+  const handleGoogleSignIn = async () => {
+    dispatch(clearError());
+    const result = await dispatch(googleSignInThunk());
+    if (googleSignInThunk.rejected.match(result)) {
+      shakeForm();
+    }
+  };
+
   return (
     <ScreenWrapper
       edges={["top", "bottom", "left", "right"]}
@@ -43,23 +81,29 @@ export default function WelcomeScreen() {
           ))}
         </View>
 
-        <View style={styles.buttons}>
-          <GradientButton
-            label="Get Started"
-            onPress={() => router.push("/(auth)/signup")}
-            style={{ marginBottom: 12 }}
-          />
-          <GradientButton
-            label="Sign In"
-            onPress={() => router.push("/(auth)/login")}
-            variant="ghost"
-            style={{
-              borderColor: "rgba(255,255,255,0.4)",
-              backgroundColor: "rgba(255,255,255,0.1)",
-            }}
-            textStyle={{ color: Colors.offWhite }}
-          />
-        </View>
+        <Animated.View style={[styles.buttons, formStyle]}>
+          {error ? (
+            <View style={styles.errorBanner}>
+              <MaterialIcons
+                name="error-outline"
+                size={16}
+                color={Colors.error}
+              />
+              <Text style={[styles.errorText, { marginLeft: 6, flex: 1 }]}>
+                {error}
+              </Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <FontAwesome name="google" size={18} color="#DB4437" />
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </ScreenWrapper>
   );
@@ -120,5 +164,38 @@ const styles = StyleSheet.create({
   },
   buttons: {
     gap: 12,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 107, 107, 0.15)",
+    padding: 12,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: "rgba(255,107,107,0.3)",
+  },
+  errorText: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.regular,
+    color: Colors.error,
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: BorderRadius.md,
+    height: 52,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  googleButtonText: {
+    fontSize: FontSize.base,
+    fontFamily: FontFamily.semibold,
+    color: "#1F1F1F",
   },
 });

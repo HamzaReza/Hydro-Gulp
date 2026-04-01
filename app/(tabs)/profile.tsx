@@ -141,6 +141,7 @@ function ProfileScreen() {
   const [editSleep, setEditSleep] = useState(sleepTime || "23:00");
   const [dangerZoneOpen, setDangerZoneOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleSaveProfile = async () => {
     if (!uid) return;
@@ -190,15 +191,23 @@ function ProfileScreen() {
   const handleDeleteAccount = async () => {
     Alert.alert(
       "Delete Account",
-      "This will permanently delete your account and all data. This cannot be undone.",
+      "This will permanently delete your account and all associated data. You will be asked to sign in with Google to confirm your identity before deletion. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete Forever",
           style: "destructive",
           onPress: async () => {
-            if (uid) {
-              await dispatch(deleteAccountThunk(uid));
+            if (!uid) return;
+            setDeleteLoading(true);
+            const result = await dispatch(deleteAccountThunk(uid));
+            setDeleteLoading(false);
+            if (deleteAccountThunk.rejected.match(result)) {
+              Alert.alert(
+                "Deletion Failed",
+                (result.payload as string) ||
+                  "Failed to delete account. Please try again.",
+              );
             }
           },
         },
@@ -467,6 +476,7 @@ function ProfileScreen() {
               label="Delete Account"
               onPress={handleDeleteAccount}
               variant="danger"
+              loading={deleteLoading}
               style={{ marginTop: 12 }}
             />
           </GlassCard>

@@ -31,6 +31,7 @@ import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import {
   DRINK_TYPES,
+  QUICK_ADD_DRINKS,
   MaterialIconName,
   QUICK_ADD_AMOUNTS,
 } from "../../constants/drinks";
@@ -170,6 +171,7 @@ function HomeScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const {
     todayLogs,
+    todayTotal,
     rawTotal,
     goal,
     unit,
@@ -277,7 +279,7 @@ function HomeScreen() {
           styles.scroll,
           // paddingTop: 16 only — SafeAreaView already added the status-bar inset
           // paddingBottom: room for floating tab bar + home indicator
-          { paddingTop: 16, paddingBottom: bottomInset + 100 },
+          { paddingTop: 16, paddingBottom: bottomInset + 180 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -309,7 +311,7 @@ function HomeScreen() {
           <AnimatedRing
             progress={progressPercent}
             size={Math.min(SCREEN_WIDTH - 80, 260)}
-            currentAmount={rawTotal}
+            currentAmount={todayTotal}
             goal={goal}
             unit={unit}
             formatAmount={(v) =>
@@ -366,7 +368,7 @@ function HomeScreen() {
                 style={styles.drinkPillScroll}
                 contentContainerStyle={styles.drinkPillContent}
               >
-                {DRINK_TYPES.map((drink) => {
+                {QUICK_ADD_DRINKS.map((drink) => {
                   const active = drink.id === quickAddDrink;
                   return (
                     <TouchableOpacity
@@ -488,9 +490,16 @@ function HomeScreen() {
                         {formatTime(log.timestamp)}
                       </Text>
                     </View>
-                    <Text style={[styles.logAmount, { color: theme.accent }]}>
-                      +{formatAmount(log.amount, unit)}
-                    </Text>
+                    <View style={styles.logAmountCol}>
+                      <Text style={[styles.logAmount, { color: theme.accent }]}>
+                        +{formatAmount(log.amount, unit)}
+                      </Text>
+                      {log.hydrationValue !== log.amount && (
+                        <Text style={[styles.logEffective, { color: theme.textSecondary }]}>
+                          {formatAmount(log.hydrationValue, unit)} effective
+                        </Text>
+                      )}
+                    </View>
                     <TouchableOpacity
                       onPress={() => handleDeleteLog(log.id, log.date)}
                       style={styles.deleteBtn}
@@ -791,9 +800,17 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: FontFamily.regular,
   },
+  logAmountCol: {
+    alignItems: "flex-end",
+  },
   logAmount: {
     fontSize: FontSize.base,
     fontFamily: FontFamily.bold,
+  },
+  logEffective: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.regular,
+    marginTop: 2,
   },
   deleteBtn: {
     padding: 4,

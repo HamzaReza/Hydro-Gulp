@@ -365,14 +365,21 @@ function HistoryScreen() {
                             >
                               {drink.label}
                             </Text>
-                            <Text
-                              style={[
-                                styles.logAmount,
-                                { color: theme.accent },
-                              ]}
-                            >
-                              {formatAmount(log.amount, unit)}
-                            </Text>
+                            <View style={styles.logAmountCol}>
+                              <Text
+                                style={[
+                                  styles.logAmount,
+                                  { color: theme.accent },
+                                ]}
+                              >
+                                {formatAmount(log.amount, unit)}
+                              </Text>
+                              {log.hydrationValue !== log.amount && (
+                                <Text style={[styles.logEffective, { color: theme.textSecondary }]}>
+                                  {formatAmount(log.hydrationValue, unit)} effective
+                                </Text>
+                              )}
+                            </View>
                           </View>
                         );
                       })}
@@ -520,9 +527,17 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontFamily: FontFamily.regular,
   },
+  logAmountCol: {
+    alignItems: "flex-end",
+  },
   logAmount: {
     fontSize: FontSize.sm,
     fontFamily: FontFamily.semibold,
+  },
+  logEffective: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.regular,
+    marginTop: 2,
   },
   exportBtn: {
     flexDirection: "row",

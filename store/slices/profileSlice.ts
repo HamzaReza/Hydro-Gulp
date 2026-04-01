@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { logoutThunk, deleteAccountThunk } from './authSlice';
 
 interface ProfileState {
   name: string;
@@ -117,7 +118,9 @@ const profileSlice = createSlice({
       })
       .addCase(updateProfileThunk.rejected, (state, action) => {
         state.error = action.payload as string;
-      });
+      })
+      .addCase(logoutThunk.fulfilled, () => initialState)
+      .addCase(deleteAccountThunk.fulfilled, () => initialState);
   },
 });
 

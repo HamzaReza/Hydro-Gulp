@@ -1,6 +1,9 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { logoutThunk, deleteAccountThunk } from './authSlice';
 
-interface Reminder {
+export interface Reminder {
   id: string;
   time: string;
   enabled: boolean;
@@ -14,6 +17,30 @@ interface SettingsState {
   notificationsEnabled: boolean;
   reminders: Reminder[];
 }
+
+export const fetchRemindersThunk = createAsyncThunk(
+  'settings/fetchReminders',
+  async (uid: string, { rejectWithValue }) => {
+    try {
+      const remindersRef = collection(db, 'users', uid, 'reminders');
+      const snapshot = await getDocs(remindersRef);
+      const reminders: Reminder[] = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          time: data.time,
+          enabled: data.enabled ?? true,
+          label: data.label || 'Time to hydrate!',
+          smartReminder: data.smartReminder ?? false,
+          notificationId: data.notificationId,
+        };
+      });
+      return reminders;
+    } catch (error: any) {
+      return rejectWithValue('Failed to fetch reminders.');
+    }
+  }
+);
 
 const initialState: SettingsState = {
   theme: "light",
@@ -55,6 +82,19 @@ const settingsSlice = createSlice({
         reminder.enabled = !reminder.enabled;
       }
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchRemindersThunk.fulfilled, (state, action) => {
+        // Merge: keep local reminders that aren't in Firestore yet, override with server data
+        state.reminders = action.payload;
+      })
+      .addCase(logoutThunk.fulfilled, (state) => {
+        state.reminders = [];
+      })
+      .addCase(deleteAccountThunk.fulfilled, (state) => {
+        state.reminders = [];
+      });
   },
 });
 

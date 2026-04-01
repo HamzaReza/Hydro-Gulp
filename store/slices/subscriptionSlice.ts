@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { logoutThunk, deleteAccountThunk } from './authSlice';
 
 interface SubscriptionState {
   isPremium: boolean;
@@ -117,7 +118,9 @@ const subscriptionSlice = createSlice({
         state.isPremium = false;
         state.plan = null;
         state.expiryDate = null;
-      });
+      })
+      .addCase(logoutThunk.fulfilled, () => initialState)
+      .addCase(deleteAccountThunk.fulfilled, () => initialState);
   },
 });
 

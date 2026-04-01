@@ -1,28 +1,30 @@
-import React, { useEffect, useCallback } from 'react';
+import { BlurView } from "expo-blur";
+import React, { useCallback, useEffect } from "react";
 import {
-  StyleSheet,
-  View,
-  TouchableOpacity,
   Dimensions,
   KeyboardAvoidingView,
+  Modal,
   Platform,
-  Text,
   ScrollView,
-} from 'react-native';
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
-  useSharedValue,
+  Easing,
+  runOnJS,
   useAnimatedStyle,
+  useSharedValue,
   withSpring,
   withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import { BlurView } from 'expo-blur';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../hooks/useTheme';
-import { FontFamily, FontSize } from '../../constants/theme';
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { FontFamily, FontSize } from "../../constants/theme";
+import { useTheme } from "../../hooks/useTheme";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 interface BottomSheetProps {
   visible: boolean;
@@ -47,16 +49,28 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
 
   useEffect(() => {
     if (visible) {
-      translateY.value = withSpring(0, { damping: 20, stiffness: 120 });
-      backdropOpacity.value = withTiming(1, { duration: 250 });
+      // Snap to off-screen synchronously so there is no stale position on the
+      // first rendered frame, then ease in — no spring overshoot / jump.
+      translateY.value = sheetHeight;
+      translateY.value = withTiming(0, {
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+      });
+      backdropOpacity.value = withTiming(1, { duration: 380 });
     } else {
-      translateY.value = withSpring(sheetHeight, { damping: 20, stiffness: 120 });
+      translateY.value = withTiming(sheetHeight, {
+        duration: 260,
+        easing: Easing.in(Easing.cubic),
+      });
       backdropOpacity.value = withTiming(0, { duration: 200 });
     }
   }, [visible, sheetHeight]);
 
   const closeSheet = useCallback(() => {
-    translateY.value = withSpring(sheetHeight, { damping: 20, stiffness: 120 });
+    translateY.value = withTiming(sheetHeight, {
+      duration: 260,
+      easing: Easing.in(Easing.cubic),
+    });
     backdropOpacity.value = withTiming(0, { duration: 200 }, () => {
       runOnJS(onClose)();
     });
@@ -84,84 +98,96 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
     opacity: backdropOpacity.value,
   }));
 
-  if (!visible) return null;
-
   return (
-    <View style={StyleSheet.absoluteFillObject}>
-      <Animated.View style={[styles.backdrop, backdropStyle]}>
-        <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={closeSheet} />
-      </Animated.View>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={closeSheet}
+    >
+      <View style={{ flex: 1 }}>
+        <Animated.View style={[styles.backdrop, backdropStyle]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            onPress={closeSheet}
+          />
+        </Animated.View>
 
-      <Animated.View
-        style={[
-          styles.sheet,
-          {
-            height: sheetHeight + insets.bottom,
-            backgroundColor: theme.background,
-            borderColor: theme.cardBorder,
-          },
-          sheetStyle,
-        ]}
-      >
-        <BlurView
-          tint={theme.blurTint}
-          intensity={80}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <View
+        <Animated.View
           style={[
-            StyleSheet.absoluteFillObject,
-            { backgroundColor: theme.card, borderRadius: 28 },
+            styles.sheet,
+            {
+              height: sheetHeight + insets.bottom,
+              backgroundColor: theme.background,
+              borderColor: theme.cardBorder,
+            },
+            sheetStyle,
           ]}
-        />
-
-        <GestureDetector gesture={panGesture}>
-          <View style={styles.handle}>
-            <View
-              style={[styles.handleBar, { backgroundColor: theme.textSecondary + '60' }]}
-            />
-          </View>
-        </GestureDetector>
-
-        {title && (
-          <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
-        )}
-
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
         >
-          <ScrollView
+          <BlurView
+            tint={theme.blurTint}
+            intensity={80}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View
+            style={[
+              StyleSheet.absoluteFillObject,
+              { backgroundColor: theme.card, borderRadius: 28 },
+            ]}
+          />
+
+          <GestureDetector gesture={panGesture}>
+            <View style={styles.handle}>
+              <View
+                style={[
+                  styles.handleBar,
+                  { backgroundColor: theme.textSecondary + "60" },
+                ]}
+              />
+            </View>
+          </GestureDetector>
+
+          {title && (
+            <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+          )}
+
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={{ flex: 1 }}
-            contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
           >
-            {children}
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </Animated.View>
-    </View>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {children}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   sheet: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   handle: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: 12,
     paddingBottom: 8,
   },
@@ -173,7 +199,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.lg,
     fontFamily: FontFamily.semibold,
-    textAlign: 'center',
+    textAlign: "center",
     paddingBottom: 16,
     paddingHorizontal: 24,
   },

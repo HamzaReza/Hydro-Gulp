@@ -16,7 +16,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Path } from "react-native-svg";
 import { useDispatch } from "react-redux";
 import LogoImage from "../../assets/images/logo.png";
-import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
+import {
+  BorderRadius,
+  Colors,
+  FontFamily,
+  FontSize,
+} from "../../constants/theme";
 import { AppDispatch } from "../../store";
 import { setHasSeenOnboarding } from "../../store/slices/authSlice";
 
@@ -29,20 +34,35 @@ const slides = [
       "Track your water intake effortlessly and build healthy hydration habits.",
     icon: "drop",
     gradient: [Colors.darkNavy, "#2A4A63"] as [string, string],
+    features: [
+      "Set a personal daily goal",
+      "Get smart reminders",
+      "Build a lasting habit",
+    ],
   },
   {
     title: "Track\nEvery Sip",
     subtitle:
-      "Log water, juice, tea, coffee and more. See how different drinks hydrate you.",
+      "Log water, juice, tea, coffee and more. See how different drinks count toward your goal.",
     icon: "ring",
     gradient: ["#2A4A63", Colors.mediumBlue] as [string, string],
+    features: [
+      "10+ drink types built in",
+      "One-tap quick logging",
+      "Tracks hydration impact",
+    ],
   },
   {
     title: "See Your\nProgress",
     subtitle:
-      "Beautiful charts, streaks, and insights keep you motivated every day.",
+      "Beautiful charts and streaks keep you motivated and on track every single day.",
     icon: "chart",
     gradient: [Colors.mediumBlue, Colors.lightBlue] as [string, string],
+    features: [
+      "Daily & weekly trends",
+      "Streak counter",
+      "Goal completion history",
+    ],
   },
 ];
 
@@ -137,12 +157,7 @@ export default function OnboardingScreen() {
 
   const handleGetStarted = () => {
     dispatch(setHasSeenOnboarding(true));
-    router.replace("/(auth)/signup");
-  };
-
-  const handleLogin = () => {
-    dispatch(setHasSeenOnboarding(true));
-    router.replace("/(auth)/login");
+    router.replace("/(auth)/welcome");
   };
 
   return (
@@ -178,6 +193,15 @@ export default function OnboardingScreen() {
 
               <Text style={styles.title}>{slide.title}</Text>
               <Text style={styles.subtitle}>{slide.subtitle}</Text>
+
+              <View style={styles.featureList}>
+                {slide.features.map((item) => (
+                  <View key={item} style={styles.featureRow}>
+                    <View style={styles.featureDot} />
+                    <Text style={styles.featureText}>{item}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           </LinearGradient>
         ))}
@@ -217,9 +241,6 @@ export default function OnboardingScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleLogin} style={{ marginTop: 16 }}>
-          <Text style={styles.loginText}>I already have an account</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -258,10 +279,31 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: FontSize.base,
     fontFamily: FontFamily.regular,
-    color: "rgba(247, 248, 240, 0.75)",
+    color: "rgba(247, 248, 240, 0.7)",
     textAlign: "center",
-    lineHeight: 24,
-    maxWidth: 300,
+    lineHeight: 26,
+    maxWidth: 290,
+    marginBottom: 36,
+  },
+  featureList: {
+    gap: 14,
+    alignItems: "center",
+  },
+  featureRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  featureDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(156, 213, 255, 0.8)",
+  },
+  featureText: {
+    fontSize: FontSize.base,
+    fontFamily: FontFamily.regular,
+    color: "rgba(247, 248, 240, 0.65)",
   },
   footer: {
     paddingHorizontal: 32,
@@ -298,10 +340,5 @@ const styles = StyleSheet.create({
     color: Colors.offWhite,
     fontSize: FontSize.base,
     fontFamily: FontFamily.semibold,
-  },
-  loginText: {
-    color: "rgba(247, 248, 240, 0.6)",
-    fontSize: FontSize.sm,
-    fontFamily: FontFamily.regular,
   },
 });

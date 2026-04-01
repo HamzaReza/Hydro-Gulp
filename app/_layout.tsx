@@ -1,3 +1,4 @@
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { useFonts } from "expo-font";
 import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -11,7 +12,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
-import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import SpaceGroteskBold from "../assets/fonts/SpaceGrotesk-Bold.ttf";
 import SpaceGroteskMedium from "../assets/fonts/SpaceGrotesk-Medium.ttf";
 import SpaceGroteskRegular from "../assets/fonts/SpaceGrotesk-Regular.ttf";
@@ -22,10 +22,10 @@ import { AppDispatch, persistor, RootState, store } from "../store";
 import {
   clearUser,
   setUser,
-  setPendingVerification,
 } from "../store/slices/authSlice";
 import { setGoal, setUnit } from "../store/slices/hydrationSlice";
 import { fetchProfileThunk } from "../store/slices/profileSlice";
+import { fetchRemindersThunk } from "../store/slices/settingsSlice";
 import { setSubscription } from "../store/slices/subscriptionSlice";
 
 SplashScreen.preventAutoHideAsync();
@@ -37,60 +37,45 @@ GoogleSignin.configure({
 
 function AuthListener({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated, pendingEmailVerification, hasSeenOnboarding } =
+  const { isAuthenticated, hasSeenOnboarding } =
     useSelector((state: RootState) => state.auth);
   const segments = useSegments();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        const isGoogleUser = user.providerData.some(
-          (p) => p.providerId === "google.com"
+        dispatch(
+          setUser({
+            uid: user.uid,
+            email: user.email!,
+            displayName: user.displayName,
+          }),
         );
-        const isVerified = user.emailVerified || isGoogleUser;
 
-        if (isVerified) {
-          dispatch(
-            setUser({
-              uid: user.uid,
-              email: user.email!,
-              displayName: user.displayName,
-            })
-          );
+        try {
+          const snap = await getDoc(doc(db, "users", user.uid));
+          if (snap.exists()) {
+            const data = snap.data();
+            dispatch(fetchProfileThunk(user.uid));
+            dispatch(fetchRemindersThunk(user.uid));
+            if (data.goal) dispatch(setGoal(data.goal));
+            if (data.unit) dispatch(setUnit(data.unit));
 
-          try {
-            const snap = await getDoc(doc(db, "users", user.uid));
-            if (snap.exists()) {
-              const data = snap.data();
-              dispatch(fetchProfileThunk(user.uid));
-              if (data.goal) dispatch(setGoal(data.goal));
-              if (data.unit) dispatch(setUnit(data.unit));
+            const premiumExpiry =
+              data.premiumExpiry instanceof Timestamp
+                ? data.premiumExpiry.toMillis()
+                : null;
 
-              const premiumExpiry =
-                data.premiumExpiry instanceof Timestamp
-                  ? data.premiumExpiry.toMillis()
-                  : null;
-
-              dispatch(
-                setSubscription({
-                  isPremium: data.isPremium || false,
-                  plan: data.premiumPlan || null,
-                  expiryDate: premiumExpiry,
-                })
-              );
-            }
-          } catch {
-            // Offline — use cached Redux state
+            dispatch(
+              setSubscription({
+                isPremium: data.isPremium || false,
+                plan: data.premiumPlan || null,
+                expiryDate: premiumExpiry,
+              }),
+            );
           }
-        } else {
-          // Signed in but email not verified
-          dispatch(
-            setPendingVerification({
-              uid: user.uid,
-              email: user.email!,
-              displayName: user.displayName,
-            })
-          );
+        } catch {
+          // Offline — use cached Redux state
         }
       } else {
         dispatch(clearUser());
@@ -103,26 +88,17 @@ function AuthListener({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const inAuthGroup = segments[0] === "(auth)";
     const inOnboarding = segments[0] === "(onboarding)";
-    const inVerifyEmail =
-      inAuthGroup && segments[1] === "verify-email";
 
     if (isAuthenticated && (inAuthGroup || inOnboarding)) {
       router.replace("/(tabs)");
-    } else if (pendingEmailVerification && !inVerifyEmail) {
-      router.replace("/(auth)/verify-email");
-    } else if (
-      !isAuthenticated &&
-      !pendingEmailVerification &&
-      !inAuthGroup &&
-      !inOnboarding
-    ) {
+    } else if (!isAuthenticated && !inAuthGroup && !inOnboarding) {
       if (!hasSeenOnboarding) {
         router.replace("/(onboarding)");
       } else {
         router.replace("/(auth)/welcome");
       }
     }
-  }, [isAuthenticated, pendingEmailVerification, segments, hasSeenOnboarding]);
+  }, [isAuthenticated, segments, hasSeenOnboarding]);
 
   return <>{children}</>;
 }

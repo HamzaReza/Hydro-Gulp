@@ -9,9 +9,9 @@ import {
   getDocs,
   serverTimestamp,
   Timestamp,
-  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { logoutThunk, deleteAccountThunk } from './authSlice';
 import { getTodayString, getLast7Days, getLast31Days } from '../../utils/dateUtils';
 import { getDrinkById } from '../../constants/drinks';
 
@@ -42,35 +42,6 @@ const initialState: HydrationState = {
   error: null,
   syncError: null,
 };
-
-export const fetchTodayLogsThunk = createAsyncThunk(
-  'hydration/fetchTodayLogs',
-  async ({ uid, date }: { uid: string; date: string }, { rejectWithValue }) => {
-    try {
-      const logsRef = collection(db, 'users', uid, 'logs');
-      const q = query(logsRef, where('date', '==', date));
-      const snapshot = await getDocs(q);
-      const logs: HydrationLog[] = snapshot.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          amount: data.amount,
-          unit: data.unit,
-          type: data.type,
-          timestamp:
-            data.timestamp instanceof Timestamp
-              ? data.timestamp.toMillis()
-              : Date.now(),
-          date: data.date,
-          hydrationValue: data.hydrationValue || data.amount,
-        };
-      });
-      return { date, logs };
-    } catch (error: any) {
-      return rejectWithValue('Failed to fetch logs.');
-    }
-  }
-);
 
 export const fetchLogsForRangeThunk = createAsyncThunk(
   'hydration/fetchLogsForRange',
@@ -111,9 +82,6 @@ export const fetchLogsForRangeThunk = createAsyncThunk(
   }
 );
 
-let addLogDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-const pendingLogs: Array<{ uid: string; logData: Omit<HydrationLog, 'id'> }> = [];
-
 export const addLogThunk = createAsyncThunk(
   'hydration/addLog',
   async (
@@ -147,7 +115,7 @@ export const addLogThunk = createAsyncThunk(
 export const deleteLogThunk = createAsyncThunk(
   'hydration/deleteLog',
   async (
-    { uid, logId, date }: { uid: string; logId: string; date: string },
+    { uid, logId, date, originalLog }: { uid: string; logId: string; date: string; originalLog: HydrationLog },
     { rejectWithValue }
   ) => {
     try {
@@ -200,29 +168,21 @@ const hydrationSlice = createSlice({
     clearSyncError: (state) => {
       state.syncError = null;
     },
-    setTodayLogsFromSnapshot: (
-      state,
-      action: PayloadAction<{ date: string; logs: HydrationLog[] }>
-    ) => {
-      state.logs[action.payload.date] = action.payload.logs;
-    },
+    clearHydrationData: () => initialState,
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchTodayLogsThunk.pending, (state) => {
+      .addCase(fetchLogsForRangeThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchTodayLogsThunk.fulfilled, (state, action) => {
+      .addCase(fetchLogsForRangeThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.logs[action.payload.date] = action.payload.logs;
+        state.logs = { ...state.logs, ...action.payload };
       })
-      .addCase(fetchTodayLogsThunk.rejected, (state, action) => {
+      .addCase(fetchLogsForRangeThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
-      })
-      .addCase(fetchLogsForRangeThunk.fulfilled, (state, action) => {
-        state.logs = { ...state.logs, ...action.payload };
       })
       .addCase(addLogThunk.fulfilled, (state, action) => {
         const log = action.payload;
@@ -234,11 +194,34 @@ const hydrationSlice = createSlice({
         }
       })
       .addCase(addLogThunk.rejected, (state, action) => {
-        state.syncError = 'Sync failed. Your data is saved locally.';
+        // Roll back the optimistic log entry that was added with a temp id
+        const logData = action.payload as Omit<HydrationLog, 'id'>;
+        if (logData?.date && logData?.timestamp) {
+          const tempId = `temp-${logData.timestamp}`;
+          if (state.logs[logData.date]) {
+            state.logs[logData.date] = state.logs[logData.date].filter((l) => l.id !== tempId);
+          }
+        }
+        state.syncError = 'Failed to save log. Please check your connection.';
       })
       .addCase(deleteLogThunk.rejected, (state, action) => {
-        state.syncError = 'Sync failed. Your data is saved locally.';
-      });
+        // Restore the optimistically deleted log
+        const { originalLog } = action.meta.arg;
+        if (originalLog) {
+          if (!state.logs[originalLog.date]) {
+            state.logs[originalLog.date] = [];
+          }
+          const already = state.logs[originalLog.date].some((l) => l.id === originalLog.id);
+          if (!already) {
+            state.logs[originalLog.date] = [...state.logs[originalLog.date], originalLog].sort(
+              (a, b) => b.timestamp - a.timestamp
+            );
+          }
+        }
+        state.syncError = 'Failed to delete log. Please check your connection.';
+      })
+      .addCase(logoutThunk.fulfilled, () => initialState)
+      .addCase(deleteAccountThunk.fulfilled, () => initialState);
   },
 });
 
@@ -250,7 +233,7 @@ export const {
   rollbackAddLog,
   rollbackDeleteLog,
   clearSyncError,
-  setTodayLogsFromSnapshot,
+  clearHydrationData,
 } = hydrationSlice.actions;
 
 export default hydrationSlice.reducer;

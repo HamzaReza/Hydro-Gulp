@@ -6,7 +6,7 @@ A full-featured water intake tracker built with React Native Expo. Features Fire
 
 ## Features
 
-- **Authentication** — Firebase email/password auth (Sign Up, Sign In, Forgot Password)
+- **Authentication** — Firebase Google Sign-In
 - **Home** — Animated SVG progress ring, quick-add buttons, custom log bottom sheet, celebration animation
 - **History** — Weekly/monthly bar charts, streak stats, calendar heatmap (Pro), expandable day logs, CSV export (Pro)
 - **Analytics** — Avg intake, drink breakdown donut chart, time-of-day heatmap, hydration score, insights (Pro)
@@ -66,8 +66,8 @@ npx expo install lottie-react-native
 
 1. Go to [console.firebase.google.com](https://console.firebase.google.com)
 2. Create a new project (or use an existing one)
-3. Enable **Email/Password** authentication:
-   - Authentication > Sign-in methods > Email/Password > Enable
+3. Enable **Google** authentication:
+   - Authentication > Sign-in methods > Google > Enable
 4. Create a **Firestore Database**:
    - Firestore Database > Create database > Start in production mode
 5. Copy your Firebase config:
@@ -134,10 +134,7 @@ WaterTracking/
 ├── app/
 │   ├── _layout.tsx              # Root layout + Firebase auth listener
 │   ├── (auth)/
-│   │   ├── welcome.tsx          # Welcome screen
-│   │   ├── login.tsx            # Login screen
-│   │   ├── signup.tsx           # Sign up screen
-│   │   └── forgot-password.tsx  # Password reset
+│   │   └── welcome.tsx          # Welcome + Google sign-in
 │   ├── (onboarding)/
 │   │   └── index.tsx            # 3-slide onboarding
 │   ├── (tabs)/

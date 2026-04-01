@@ -17,6 +17,7 @@ import { getTodayString } from '../utils/dateUtils';
 export const useHydration = () => {
   const dispatch = useDispatch<AppDispatch>();
   const uid = useSelector((state: RootState) => state.auth.uid);
+  const allLogsByDate = useSelector((state: RootState) => state.hydration.logs);
   const todayLogs = useSelector(selectTodayLogs);
   const todayTotal = useSelector(selectTodayTotal);
   const weeklyData = useSelector(selectWeeklyData);
@@ -28,7 +29,7 @@ export const useHydration = () => {
     () => todayLogs.reduce((sum: number, log: HydrationLog) => sum + log.amount, 0),
     [todayLogs]
   );
-  const progressPercent = goal > 0 ? (rawTotal / goal) * 100 : 0;
+  const progressPercent = goal > 0 ? (todayTotal / goal) * 100 : 0;
 
   const addLog = useCallback(
     (amount: number, type: string = 'water') => {
@@ -57,10 +58,13 @@ export const useHydration = () => {
   const deleteLog = useCallback(
     (logId: string, date: string) => {
       if (!uid) return;
+      const logsForDate = allLogsByDate[date] || [];
+      const originalLog = logsForDate.find((l) => l.id === logId);
+      if (!originalLog) return;
       dispatch(optimisticDeleteLog({ logId, date }));
-      dispatch(deleteLogThunk({ uid, logId, date }));
+      dispatch(deleteLogThunk({ uid, logId, date, originalLog }));
     },
-    [dispatch, uid]
+    [dispatch, uid, allLogsByDate]
   );
 
   return {
