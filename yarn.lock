@@ -1947,6 +1947,11 @@
   dependencies:
     merge-options "^3.0.4"
 
+"@react-native-google-signin/google-signin@^16.1.2":
+  version "16.1.2"
+  resolved "https://registry.yarnpkg.com/@react-native-google-signin/google-signin/-/google-signin-16.1.2.tgz#fe22dd4672f6fd1559e6a3fc27811ab5359de2ba"
+  integrity sha512-1hf4pRmpnS5t0dHtqU72Q1FmWzsCZR2Sm3uVQbbfMKeNPl5TKjpAsP6F8QTZ9L+Q6Cnn9tL9BXpDCb1nyutdCQ==
+
 "@react-native/assets-registry@0.83.4":
   version "0.83.4"
   resolved "https://registry.yarnpkg.com/@react-native/assets-registry/-/assets-registry-0.83.4.tgz#48408565f1a6a40cc91e4bbff38e07665d31fbd6"
@@ -3176,13 +3181,6 @@ expo-linking@~55.0.9:
   integrity sha512-QWEefQZUu7PuJzye19Hr6msqpO4VB4TiY4T/6AkISJzZnoZGxWg16s3JTZS7D/b3VMm8VQfhw9I5NF/7f8EPcA==
   dependencies:
     expo-constants "~55.0.9"
-    invariant "^2.2.4"
-
-expo-local-authentication@~55.0.9:
-  version "55.0.9"
-  resolved "https://registry.yarnpkg.com/expo-local-authentication/-/expo-local-authentication-55.0.9.tgz#8993962566c62062b3d00503e945db2e40f9b402"
-  integrity sha512-WeFmISIOpq3VOg1DkUf2J9xtj7FJuFOjSN5z+z+fNFCjCuFY1vw20UMApbiEz7bOvE2w6tDYpTF4GJhaatKJ/Q==
-  dependencies:
     invariant "^2.2.4"
 
 expo-manifests@~55.0.11:

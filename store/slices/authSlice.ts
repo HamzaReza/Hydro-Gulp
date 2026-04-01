@@ -2,19 +2,24 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithCredential,
   signOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
   updateProfile,
   deleteUser,
+  GoogleAuthProvider,
 } from 'firebase/auth';
 import {
   doc,
   setDoc,
+  getDoc,
   deleteDoc,
   collection,
   getDocs,
   serverTimestamp,
 } from 'firebase/firestore';
+import { GoogleSignin, isSuccessResponse } from '@react-native-google-signin/google-signin';
 import { auth, db } from '../../firebase';
 
 interface AuthState {
@@ -22,6 +27,8 @@ interface AuthState {
   email: string | null;
   displayName: string | null;
   isAuthenticated: boolean;
+  /** True when a new email/password account was created but email not yet verified */
+  pendingEmailVerification: boolean;
   loading: boolean;
   error: string | null;
   hasSeenOnboarding: boolean;
@@ -33,6 +40,7 @@ const initialState: AuthState = {
   email: null,
   displayName: null,
   isAuthenticated: false,
+  pendingEmailVerification: false,
   loading: false,
   error: null,
   hasSeenOnboarding: false,
@@ -62,6 +70,17 @@ const getAuthErrorMessage = (code: string): string => {
   }
 };
 
+const DEFAULT_USER_DOC = {
+  goal: 2000,
+  unit: 'ml',
+  wakeTime: '07:00',
+  sleepTime: '23:00',
+  isPremium: false,
+  premiumPlan: null,
+  premiumExpiry: null,
+  avatarColor: '#7AAACE',
+};
+
 export const signupThunk = createAsyncThunk(
   'auth/signup',
   async (
@@ -71,19 +90,13 @@ export const signupThunk = createAsyncThunk(
     try {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(credential.user, { displayName: name });
+      await sendEmailVerification(credential.user);
 
       await setDoc(doc(db, 'users', credential.user.uid), {
+        ...DEFAULT_USER_DOC,
         name,
         email,
-        goal: 2000,
-        unit: 'ml',
-        wakeTime: '07:00',
-        sleepTime: '23:00',
         createdAt: serverTimestamp(),
-        isPremium: false,
-        premiumPlan: null,
-        premiumExpiry: null,
-        avatarColor: '#7AAACE',
       });
 
       return {
@@ -105,13 +118,90 @@ export const loginThunk = createAsyncThunk(
   ) => {
     try {
       const credential = await signInWithEmailAndPassword(auth, email, password);
+      if (!credential.user.emailVerified) {
+        await signOut(auth);
+        return rejectWithValue(
+          'Please verify your email before signing in. Check your inbox for the verification link.'
+        );
+      }
       return {
         uid: credential.user.uid,
         email: credential.user.email!,
         displayName: credential.user.displayName,
       };
     } catch (error: any) {
+      if (typeof error === 'string') return rejectWithValue(error);
       return rejectWithValue(getAuthErrorMessage(error.code || ''));
+    }
+  }
+);
+
+export const googleSignInThunk = createAsyncThunk(
+  'auth/googleSignIn',
+  async (_, { rejectWithValue }) => {
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const response = await GoogleSignin.signIn();
+
+      if (!isSuccessResponse(response)) {
+        return rejectWithValue('Google sign-in was cancelled.');
+      }
+
+      const tokens = await GoogleSignin.getTokens();
+      const googleCredential = GoogleAuthProvider.credential(tokens.idToken);
+      const userCredential = await signInWithCredential(auth, googleCredential);
+      const user = userCredential.user;
+
+      // Create Firestore doc on first Google sign-in
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, 'users', user.uid), {
+          ...DEFAULT_USER_DOC,
+          name: user.displayName || '',
+          email: user.email || '',
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      return {
+        uid: user.uid,
+        email: user.email!,
+        displayName: user.displayName,
+      };
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Google sign-in failed. Please try again.');
+    }
+  }
+);
+
+export const resendVerificationEmailThunk = createAsyncThunk(
+  'auth/resendVerificationEmail',
+  async (_, { rejectWithValue }) => {
+    try {
+      if (!auth.currentUser) throw new Error('No user session found.');
+      await sendEmailVerification(auth.currentUser);
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to resend verification email.');
+    }
+  }
+);
+
+export const checkEmailVerifiedThunk = createAsyncThunk(
+  'auth/checkEmailVerified',
+  async (_, { rejectWithValue }) => {
+    try {
+      if (!auth.currentUser) throw new Error('No user session found.');
+      await auth.currentUser.reload();
+      if (!auth.currentUser.emailVerified) {
+        return rejectWithValue('Email not yet verified. Please check your inbox.');
+      }
+      return {
+        uid: auth.currentUser.uid,
+        email: auth.currentUser.email!,
+        displayName: auth.currentUser.displayName,
+      };
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to check verification status.');
     }
   }
 );
@@ -173,6 +263,19 @@ const authSlice = createSlice({
       state.email = action.payload.email;
       state.displayName = action.payload.displayName;
       state.isAuthenticated = true;
+      state.pendingEmailVerification = false;
+      state.loading = false;
+      state.error = null;
+    },
+    setPendingVerification: (
+      state,
+      action: PayloadAction<{ uid: string; email: string; displayName: string | null }>
+    ) => {
+      state.uid = action.payload.uid;
+      state.email = action.payload.email;
+      state.displayName = action.payload.displayName;
+      state.isAuthenticated = false;
+      state.pendingEmailVerification = true;
       state.loading = false;
       state.error = null;
     },
@@ -181,6 +284,7 @@ const authSlice = createSlice({
       state.email = null;
       state.displayName = null;
       state.isAuthenticated = false;
+      state.pendingEmailVerification = false;
       state.loading = false;
       state.error = null;
     },
@@ -194,6 +298,7 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Signup — creates account & sends verification, does NOT authenticate
       .addCase(signupThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -202,7 +307,8 @@ const authSlice = createSlice({
         state.uid = action.payload.uid;
         state.email = action.payload.email;
         state.displayName = action.payload.displayName;
-        state.isAuthenticated = true;
+        state.isAuthenticated = false;
+        state.pendingEmailVerification = true;
         state.loading = false;
         state.error = null;
       })
@@ -210,6 +316,8 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+
+      // Login — only succeeds if email is verified
       .addCase(loginThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -219,6 +327,7 @@ const authSlice = createSlice({
         state.email = action.payload.email;
         state.displayName = action.payload.displayName;
         state.isAuthenticated = true;
+        state.pendingEmailVerification = false;
         state.loading = false;
         state.error = null;
       })
@@ -226,11 +335,64 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       })
+
+      // Google Sign-In — always verified
+      .addCase(googleSignInThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(googleSignInThunk.fulfilled, (state, action) => {
+        state.uid = action.payload.uid;
+        state.email = action.payload.email;
+        state.displayName = action.payload.displayName;
+        state.isAuthenticated = true;
+        state.pendingEmailVerification = false;
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(googleSignInThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
+      // Check email verified (on verify-email screen)
+      .addCase(checkEmailVerifiedThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(checkEmailVerifiedThunk.fulfilled, (state, action) => {
+        state.uid = action.payload.uid;
+        state.email = action.payload.email;
+        state.displayName = action.payload.displayName;
+        state.isAuthenticated = true;
+        state.pendingEmailVerification = false;
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(checkEmailVerifiedThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
+      // Resend verification email
+      .addCase(resendVerificationEmailThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(resendVerificationEmailThunk.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(resendVerificationEmailThunk.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+
       .addCase(logoutThunk.fulfilled, (state) => {
         state.uid = null;
         state.email = null;
         state.displayName = null;
         state.isAuthenticated = false;
+        state.pendingEmailVerification = false;
       })
       .addCase(resetPasswordThunk.pending, (state) => {
         state.loading = true;
@@ -250,6 +412,7 @@ const authSlice = createSlice({
         state.email = null;
         state.displayName = null;
         state.isAuthenticated = false;
+        state.pendingEmailVerification = false;
       })
       .addCase(deleteAccountThunk.rejected, (state, action) => {
         state.error = action.payload as string;
@@ -257,5 +420,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, clearUser, setHasSeenOnboarding, clearError } = authSlice.actions;
+export const { setUser, setPendingVerification, clearUser, setHasSeenOnboarding, clearError } =
+  authSlice.actions;
 export default authSlice.reducer;

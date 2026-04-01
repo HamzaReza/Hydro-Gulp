@@ -29,7 +29,6 @@ const FEATURES = [
   { icon: "bar-chart", label: "Full Analytics & Hydration Score" },
   { icon: "local-bar", label: "Drink Type Hydration Multipliers" },
   { icon: "download", label: "CSV Export" },
-  { icon: "fingerprint", label: "Biometric App Lock" },
   { icon: "add-circle", label: "Custom Drink Types" },
   { icon: "support-agent", label: "Priority Support" },
 ];

@@ -23,7 +23,11 @@ import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
 import { AppDispatch, RootState } from "../../store";
-import { clearError, signupThunk } from "../../store/slices/authSlice";
+import {
+  clearError,
+  googleSignInThunk,
+  signupThunk,
+} from "../../store/slices/authSlice";
 
 export default function SignUpScreen() {
   const dispatch = useDispatch<AppDispatch>();
@@ -48,7 +52,7 @@ export default function SignUpScreen() {
       withTiming(10, { duration: 60 }),
       withTiming(-8, { duration: 60 }),
       withTiming(8, { duration: 60 }),
-      withTiming(0, { duration: 60 }),
+      withTiming(0, { duration: 60 })
     );
   };
 
@@ -81,11 +85,22 @@ export default function SignUpScreen() {
     }
 
     const result = await dispatch(
-      signupThunk({ email: email.trim(), password, name: name.trim() }),
+      signupThunk({ email: email.trim(), password, name: name.trim() })
     );
-    if (signupThunk.rejected.match(result)) {
+    if (signupThunk.fulfilled.match(result)) {
+      router.replace("/(auth)/verify-email");
+    } else {
       shakeForm();
     }
+  };
+
+  const handleGoogleSignIn = async () => {
+    dispatch(clearError());
+    const result = await dispatch(googleSignInThunk());
+    if (googleSignInThunk.rejected.match(result)) {
+      shakeForm();
+    }
+    // On success, AuthListener navigates to /(tabs) automatically
   };
 
   return (
@@ -293,6 +308,25 @@ export default function SignUpScreen() {
               loading={loading}
               style={{ marginTop: 8 }}
             />
+
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Google Sign-In */}
+            <TouchableOpacity
+              style={styles.googleButton}
+              onPress={handleGoogleSignIn}
+              disabled={loading}
+            >
+              <View style={styles.googleIconContainer}>
+                <Text style={styles.googleG}>G</Text>
+              </View>
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
           </Animated.View>
 
           <View style={styles.footer}>
@@ -385,6 +419,54 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
     borderWidth: 1,
     borderColor: "rgba(255,107,107,0.3)",
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  dividerText: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.regular,
+    color: "rgba(247,248,240,0.4)",
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: BorderRadius.md,
+    height: 52,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  googleIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#4285F4",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  googleG: {
+    fontSize: 13,
+    fontFamily: FontFamily.bold,
+    color: "#fff",
+    lineHeight: 16,
+  },
+  googleButtonText: {
+    fontSize: FontSize.base,
+    fontFamily: FontFamily.semibold,
+    color: "#1F1F1F",
   },
   footer: {
     flexDirection: "row",

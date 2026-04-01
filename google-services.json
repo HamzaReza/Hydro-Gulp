@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "561495127840",
+    "project_id": "hydro-9ff36",
+    "storage_bucket": "hydro-9ff36.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561495127840:android:5acb849594e6d0e6798945",
+        "android_client_info": {
+          "package_name": "com.hydrogulp.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "561495127840-92hsg3gcenlu9lj2gk14cde5qlniulbd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBeVtymSD40ES_gxDz9H3nmTYnxakAi9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "561495127840-92hsg3gcenlu9lj2gk14cde5qlniulbd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

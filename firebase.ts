@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { GoogleAuthProvider, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -24,4 +24,5 @@ export const auth = initializeAuth(app, {
 // For full native offline support, migrate to @react-native-firebase/firestore.
 export const db = getFirestore(app);
 
+export const googleProvider = new GoogleAuthProvider();
 export { app };

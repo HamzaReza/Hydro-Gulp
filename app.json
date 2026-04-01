@@ -26,8 +26,15 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hydrogulp.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Use Face ID to securely unlock Hydro: Gulp"
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.561495127840-ji8e673fhnn9mpndtoj7fhcoi9p7cgnj"
+            ]
+          }
+        ]
       }
     },
     "android": {
@@ -36,9 +43,8 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "com.hydrogulp.app",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
-        "android.permission.USE_FINGERPRINT",
-        "android.permission.USE_BIOMETRIC",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS"
@@ -58,13 +64,13 @@
           "sounds": []
         }
       ],
+      "expo-font",
       [
-        "expo-local-authentication",
+        "@react-native-google-signin/google-signin",
         {
-          "faceIDPermission": "Use Face ID to securely unlock Hydro: Gulp"
+          "iosUrlScheme": "com.googleusercontent.apps.561495127840-ji8e673fhnn9mpndtoj7fhcoi9p7cgnj"
         }
-      ],
-      "expo-font"
+      ]
     ],
     "experiments": {
       "typedRoutes": true
