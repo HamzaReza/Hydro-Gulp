@@ -286,6 +286,7 @@ function HistoryScreen() {
             .reverse()
             .map((date) => {
               const dayLogs = logs[date] || [];
+              const dayRawTotal = dayLogs.reduce((sum, l) => sum + l.amount, 0);
               const dayTotal = dayLogs.reduce(
                 (sum, l) => sum + l.hydrationValue,
                 0,
@@ -310,7 +311,9 @@ function HistoryScreen() {
                           { color: theme.textSecondary },
                         ]}
                       >
-                        {formatAmount(dayTotal, unit)}
+                        {dayRawTotal === dayTotal
+                          ? formatAmount(dayTotal, unit)
+                          : `${formatAmount(dayRawTotal, unit)} (${formatAmount(dayTotal, unit)} effective)`}
                       </Text>
                     </View>
                     <View style={styles.dayHeaderRight}>
