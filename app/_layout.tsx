@@ -8,7 +8,7 @@ import * as Updates from "expo-updates";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 import React, { useCallback, useEffect, useMemo } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, useColorScheme, View } from "react-native";
 import {
   DarkTheme as NavigationDarkTheme,
   DefaultTheme as NavigationDefaultTheme,
@@ -136,7 +136,14 @@ function ThemedRoot({
   children: React.ReactNode;
   onLayout?: () => void;
 }) {
-  const mode = useSelector((state: RootState) => state.settings.theme);
+  const themePreference = useSelector((state: RootState) => state.settings.theme);
+  const systemColorScheme = useColorScheme();
+  const mode =
+    themePreference === "system"
+      ? systemColorScheme === "dark"
+        ? "dark"
+        : "light"
+      : themePreference;
   const surfaceBg =
     mode === "dark" ? AppDarkTheme.background : LightTheme.gradientStart;
 
@@ -155,7 +162,14 @@ function ThemedRoot({
 }
 
 function AppContent() {
-  const theme = useSelector((state: RootState) => state.settings.theme);
+  const themePreference = useSelector((state: RootState) => state.settings.theme);
+  const systemColorScheme = useColorScheme();
+  const theme =
+    themePreference === "system"
+      ? systemColorScheme === "dark"
+        ? "dark"
+        : "light"
+      : themePreference;
   const navigationTheme = useMemo(
     () => navigationThemeForApp(theme),
     [theme],

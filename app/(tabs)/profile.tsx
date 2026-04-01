@@ -1,7 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
+import * as StoreReview from "expo-store-review";
 import React, { useState } from "react";
 import {
   Alert,
@@ -9,8 +11,8 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -23,13 +25,18 @@ import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import { Brand } from "../../constants/branding";
-import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
+import {
+  BorderRadius,
+  Colors,
+  FontFamily,
+  FontSize,
+} from "../../constants/theme";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
 import { AppDispatch, RootState } from "../../store";
 import { deleteAccountThunk, logoutThunk } from "../../store/slices/authSlice";
 import { updateProfileThunk } from "../../store/slices/profileSlice";
-import { toggleTheme } from "../../store/slices/settingsSlice";
+import { setTheme } from "../../store/slices/settingsSlice";
 
 function Avatar({
   name,
@@ -120,6 +127,11 @@ function SettingsRow({
 }
 
 function ProfileScreen() {
+  const PRIVACY_POLICY_URL = "https://hydro-9ff36.web.app/privacy-policy";
+  const TERMS_URL = "https://hydro-9ff36.web.app/terms-of-service";
+  const APP_WEB_URL = "https://hydro-9ff36.web.app";
+  const PLAY_STORE_URL =
+    "https://play.google.com/store/apps/details?id=com.hydrogulp.app";
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
@@ -131,6 +143,11 @@ function ProfileScreen() {
     (state: RootState) => state.profile,
   );
   const themeMode = useSelector((state: RootState) => state.settings.theme);
+  const themeOptions: Array<{ label: string; value: "light" | "dark" | "system" }> = [
+    { label: "Light", value: "light" },
+    { label: "Dark", value: "dark" },
+    { label: "System", value: "system" },
+  ];
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(name);
@@ -170,7 +187,6 @@ function ProfileScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setEditModalVisible(false);
   };
-
 
   const handleLogout = async () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
@@ -212,6 +228,46 @@ function ProfileScreen() {
         },
       ],
     );
+  };
+
+  const openExternalUrl = async (url: string, title: string) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert(title, "Unable to open this link right now.");
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(title, "Unable to open this link right now.");
+    }
+  };
+
+  const handleRateApp = async () => {
+    try {
+      const canReviewInApp = await StoreReview.hasAction();
+      if (canReviewInApp) {
+        await StoreReview.requestReview();
+        return;
+      }
+    } catch {
+      // Fallback to store URL if in-app review is unavailable.
+    }
+
+    const rateUrl = Platform.OS === "android" ? PLAY_STORE_URL : APP_WEB_URL;
+    await openExternalUrl(rateUrl, "Rate Hydro: Gulp");
+  };
+
+  const handleShareApp = async () => {
+    try {
+      await Share.share({
+        message: `Track your water intake with ${Brand.appName}: ${PLAY_STORE_URL}`,
+        url: PLAY_STORE_URL,
+        title: `Share ${Brand.appName}`,
+      });
+    } catch {
+      Alert.alert("Share App", "Unable to open share options right now.");
+    }
   };
 
   const expiryStr = expiryDate
@@ -368,24 +424,47 @@ function ProfileScreen() {
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
           Preferences
         </Text>
-        <GlassCard style={styles.settingsCard} padding={0}>
-          <SettingsRow
-            icon="dark-mode"
-            title="Dark Mode"
-            right={
-              <Switch
-                value={themeMode === "dark"}
-                onValueChange={() => {
-                  dispatch(toggleTheme());
-                }}
-                trackColor={{
-                  false: theme.progressBackground,
-                  true: theme.accent,
-                }}
-                thumbColor="#fff"
-              />
-            }
-          />
+        <GlassCard style={styles.settingsCard}>
+          <View style={styles.preferenceHeader}>
+            <MaterialIcons name="dark-mode" size={20} color={theme.accent} />
+            <View style={{ marginLeft: 12 }}>
+              <Text style={[styles.settingTitle, { color: theme.text }]}>
+                Appearance
+              </Text>
+              <Text style={[styles.settingSubtitle, { color: theme.textSecondary }]}>
+                Choose Light, Dark, or follow system.
+              </Text>
+            </View>
+          </View>
+          <View style={styles.themeOptionsRow}>
+            {themeOptions.map((option) => {
+              const selected = themeMode === option.value;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  onPress={() => dispatch(setTheme(option.value))}
+                  style={[
+                    styles.themeOptionButton,
+                    {
+                      backgroundColor: selected
+                        ? theme.accent
+                        : theme.inputBackground,
+                      borderColor: selected ? theme.accent : theme.inputBorder,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      { color: selected ? "#fff" : theme.textSecondary },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </GlassCard>
 
         {/* More */}
@@ -394,23 +473,24 @@ function ProfileScreen() {
           {[
             {
               icon: "star-rate",
-              title: "Rate HydrO: Gulp",
-              onPress: () => Alert.alert("Thank you!", "Rating coming soon."),
+              title: "Rate Hydro: Gulp",
+              onPress: handleRateApp,
             },
             {
               icon: "share",
               title: "Share App",
-              onPress: () => Alert.alert("Share", "Sharing coming soon."),
+              onPress: handleShareApp,
             },
             {
               icon: "privacy-tip",
               title: "Privacy Policy",
-              onPress: () => Alert.alert("Privacy Policy", "Coming soon."),
+              onPress: () =>
+                openExternalUrl(PRIVACY_POLICY_URL, "Privacy Policy"),
             },
             {
               icon: "description",
               title: "Terms of Service",
-              onPress: () => Alert.alert("Terms", "Coming soon."),
+              onPress: () => openExternalUrl(TERMS_URL, "Terms of Service"),
             },
           ].map((item, i, arr) => (
             <React.Fragment key={item.title}>
@@ -709,6 +789,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   settingsCard: { marginBottom: 16, borderRadius: 20 },
+  preferenceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  themeOptionsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  themeOptionButton: {
+    flex: 1,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  themeOptionText: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.semibold,
+  },
   settingRow: {
     flexDirection: "row",
     alignItems: "center",

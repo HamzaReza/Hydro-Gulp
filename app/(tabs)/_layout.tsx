@@ -13,13 +13,16 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";
 
-const TAB_ITEMS = [
-  { name: "index", icon: "water-drop" as const },
-  { name: "history", icon: "history" as const },
-  { name: "analytics", icon: "bar-chart" as const },
-  { name: "reminders", icon: "notifications" as const },
-  { name: "profile", icon: "person" as const },
-];
+const TAB_ICONS: Record<
+  string,
+  React.ComponentProps<typeof MaterialIcons>["name"]
+> = {
+  index: "water-drop",
+  history: "history",
+  analytics: "bar-chart",
+  reminders: "notifications",
+  profile: "person",
+};
 
 // ─── Single tab button ───────────────────────────────────────────────────────
 
@@ -130,23 +133,26 @@ function CustomTabBar({ state, navigation }: any) {
         />
 
         {/* Tab buttons */}
-        {TAB_ITEMS.map((tab, index) => {
+        {state.routes.map((route: any, index: number) => {
           const focused = state.index === index;
+          const icon = TAB_ICONS[route.name];
+          if (!icon) return null;
+
           return (
             <TabButton
-              key={tab.name}
-              icon={tab.icon}
+              key={route.key}
+              icon={icon}
               focused={focused}
               accentColor={theme.accent}
               inactiveColor={theme.textSecondary + "70"}
               onPress={() => {
                 const event = navigation.emit({
                   type: "tabPress",
-                  target: state.routes[index].key,
+                  target: route.key,
                   canPreventDefault: true,
                 });
                 if (!focused && !event.defaultPrevented) {
-                  navigation.navigate(state.routes[index].name);
+                  navigation.navigate(route.name);
                 }
               }}
             />
@@ -164,11 +170,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <CustomTabBar {...props} />}
-    >
-      {TAB_ITEMS.map((tab) => (
-        <Tabs.Screen key={tab.name} name={tab.name} />
-      ))}
-    </Tabs>
+    />
   );
 }
 

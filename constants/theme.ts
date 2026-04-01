@@ -57,7 +57,7 @@ export const DarkTheme = {
   isDark: true,
 };
 
-export type Theme = typeof LightTheme;
+export type Theme = typeof LightTheme | typeof DarkTheme;
 
 export const Spacing = {
   xs: 4,

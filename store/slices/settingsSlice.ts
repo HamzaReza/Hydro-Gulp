@@ -12,8 +12,10 @@ export interface Reminder {
   notificationId?: string;
 }
 
+export type ThemePreference = "light" | "dark" | "system";
+
 interface SettingsState {
-  theme: "light" | "dark";
+  theme: ThemePreference;
   notificationsEnabled: boolean;
   reminders: Reminder[];
 }
@@ -43,7 +45,7 @@ export const fetchRemindersThunk = createAsyncThunk(
 );
 
 const initialState: SettingsState = {
-  theme: "light",
+  theme: "system",
   notificationsEnabled: false,
   reminders: [],
 };
@@ -52,11 +54,17 @@ const settingsSlice = createSlice({
   name: "settings",
   initialState,
   reducers: {
-    setTheme: (state, action: PayloadAction<"light" | "dark">) => {
+    setTheme: (state, action: PayloadAction<ThemePreference>) => {
       state.theme = action.payload;
     },
     toggleTheme: (state) => {
-      state.theme = state.theme === "light" ? "dark" : "light";
+      if (state.theme === "light") {
+        state.theme = "dark";
+      } else if (state.theme === "dark") {
+        state.theme = "system";
+      } else {
+        state.theme = "light";
+      }
     },
     setNotificationsEnabled: (state, action: PayloadAction<boolean>) => {
       state.notificationsEnabled = action.payload;
