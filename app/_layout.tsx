@@ -3,11 +3,17 @@ import { useFonts } from "expo-font";
 import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { setBackgroundColorAsync } from "expo-system-ui";
 import * as Updates from "expo-updates";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import {
+  DarkTheme as NavigationDarkTheme,
+  DefaultTheme as NavigationDefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Provider, useDispatch, useSelector } from "react-redux";
@@ -16,13 +22,10 @@ import SpaceGroteskBold from "../assets/fonts/SpaceGrotesk-Bold.ttf";
 import SpaceGroteskMedium from "../assets/fonts/SpaceGrotesk-Medium.ttf";
 import SpaceGroteskRegular from "../assets/fonts/SpaceGrotesk-Regular.ttf";
 import SpaceGroteskSemiBold from "../assets/fonts/SpaceGrotesk-SemiBold.ttf";
-import { Colors } from "../constants/theme";
+import { Colors, DarkTheme as AppDarkTheme, LightTheme } from "../constants/theme";
 import { auth, db } from "../firebase";
 import { AppDispatch, persistor, RootState, store } from "../store";
-import {
-  clearUser,
-  setUser,
-} from "../store/slices/authSlice";
+import { clearUser, setUser } from "../store/slices/authSlice";
 import { setGoal, setUnit } from "../store/slices/hydrationSlice";
 import { fetchProfileThunk } from "../store/slices/profileSlice";
 import { fetchRemindersThunk } from "../store/slices/settingsSlice";
@@ -37,8 +40,9 @@ GoogleSignin.configure({
 
 function AuthListener({ children }: { children: React.ReactNode }) {
   const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated, hasSeenOnboarding } =
-    useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, hasSeenOnboarding } = useSelector(
+    (state: RootState) => state.auth,
+  );
   const segments = useSegments();
 
   useEffect(() => {
@@ -103,25 +107,78 @@ function AuthListener({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AppContent() {
-  const theme = useSelector((state: RootState) => state.settings.theme);
+/** Matches app surfaces so native stack `colors.background` is not React Navigation’s default gray/white. */
+function navigationThemeForApp(mode: "light" | "dark") {
+  if (mode === "dark") {
+    return {
+      ...NavigationDarkTheme,
+      colors: {
+        ...NavigationDarkTheme.colors,
+        background: AppDarkTheme.background,
+        card: AppDarkTheme.background,
+      },
+    };
+  }
+  return {
+    ...NavigationDefaultTheme,
+    colors: {
+      ...NavigationDefaultTheme.colors,
+      background: LightTheme.gradientStart,
+      card: LightTheme.background,
+    },
+  };
+}
+
+function ThemedRoot({
+  children,
+  onLayout,
+}: {
+  children: React.ReactNode;
+  onLayout?: () => void;
+}) {
+  const mode = useSelector((state: RootState) => state.settings.theme);
+  const surfaceBg =
+    mode === "dark" ? AppDarkTheme.background : LightTheme.gradientStart;
+
+  useEffect(() => {
+    void setBackgroundColorAsync(surfaceBg);
+  }, [surfaceBg]);
 
   return (
-    <AuthListener>
-      <StatusBar style={theme === "dark" ? "light" : "dark"} />
-      <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
-        <Stack.Screen name="(onboarding)" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="subscription"
-          options={{
-            presentation: "modal",
-            animation: "slide_from_bottom",
-          }}
-        />
-      </Stack>
-    </AuthListener>
+    <GestureHandlerRootView
+      style={{ flex: 1, backgroundColor: surfaceBg }}
+      onLayout={onLayout}
+    >
+      <SafeAreaProvider>{children}</SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+function AppContent() {
+  const theme = useSelector((state: RootState) => state.settings.theme);
+  const navigationTheme = useMemo(
+    () => navigationThemeForApp(theme),
+    [theme],
+  );
+
+  return (
+    <ThemeProvider value={navigationTheme}>
+      <AuthListener>
+        <StatusBar style={theme === "dark" ? "light" : "dark"} />
+        <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
+          <Stack.Screen name="(onboarding)" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="subscription"
+            options={{
+              animation: "slide_from_bottom",
+              contentStyle: { backgroundColor: Colors.darkNavy },
+            }}
+          />
+        </Stack>
+      </AuthListener>
+    </ThemeProvider>
   );
 }
 
@@ -168,22 +225,20 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <SafeAreaProvider>
-        <Provider store={store}>
-          <PersistGate
-            loading={
-              <View style={styles.loading}>
-                <ActivityIndicator color={Colors.mediumBlue} size="large" />
-              </View>
-            }
-            persistor={persistor}
-          >
-            <AppContent />
-          </PersistGate>
-        </Provider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <Provider store={store}>
+      <ThemedRoot onLayout={onLayoutRootView}>
+        <PersistGate
+          loading={
+            <View style={styles.loading}>
+              <ActivityIndicator color={Colors.mediumBlue} size="large" />
+            </View>
+          }
+          persistor={persistor}
+        >
+          <AppContent />
+        </PersistGate>
+      </ThemedRoot>
+    </Provider>
   );
 }
 

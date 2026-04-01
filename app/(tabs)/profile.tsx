@@ -18,7 +18,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
-import { AppLogoMark } from "../../components/ui/AppLogoMark";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
@@ -358,7 +357,6 @@ function ProfileScreen() {
               </Text>
               <GradientButton
                 label="Upgrade to Pro"
-                icon={<AppLogoMark size={20} />}
                 onPress={() => router.push("/subscription")}
                 style={{ marginTop: 12 }}
               />

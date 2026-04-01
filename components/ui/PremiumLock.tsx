@@ -1,14 +1,24 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { BlurTargetView, BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Brand } from "../../constants/branding";
-import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
+import {
+  BorderRadius,
+  Colors,
+  FontFamily,
+  FontSize,
+} from "../../constants/theme";
 import { useTheme } from "../../hooks/useTheme";
-import { AppLogoMark } from "./AppLogoMark";
 
 interface PremiumLockProps {
   title?: string;
@@ -22,6 +32,14 @@ export const PremiumLock: React.FC<PremiumLockProps> = ({
   children,
 }) => {
   const theme = useTheme();
+  const blurTargetRef = React.useRef<View | null>(null);
+  const androidBlurProps =
+    Platform.OS === "android" && children
+      ? ({
+          blurMethod: "dimezisBlurViewSdk31Plus",
+          blurTarget: blurTargetRef,
+        } as const)
+      : {};
 
   const handleUpgrade = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -31,22 +49,23 @@ export const PremiumLock: React.FC<PremiumLockProps> = ({
   return (
     <View style={styles.wrapper}>
       {children && (
-        <View style={styles.blurredContent}>
+        <BlurTargetView ref={blurTargetRef} style={styles.blurredContent}>
           {children}
           <BlurView
             tint={theme.blurTint}
             intensity={20}
-            style={StyleSheet.absoluteFillObject}
+            {...androidBlurProps}
+            style={StyleSheet.absoluteFill}
           />
-        </View>
+        </BlurTargetView>
       )}
       <View style={styles.overlay}>
         <BlurView
           tint={theme.blurTint}
           intensity={60}
-          style={StyleSheet.absoluteFillObject}
+          {...androidBlurProps}
+          style={StyleSheet.absoluteFill}
         />
-        <View style={StyleSheet.absoluteFillObject} />
         <View style={styles.content}>
           <LinearGradient
             colors={[Colors.mediumBlue, Colors.lightBlue]}
@@ -67,7 +86,6 @@ export const PremiumLock: React.FC<PremiumLockProps> = ({
               end={{ x: 1, y: 0 }}
               style={styles.button}
             >
-              <AppLogoMark size={22} style={styles.buttonLogo} />
               <Text style={styles.buttonText}>{Brand.proCta}</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -118,15 +136,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   button: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 28,
     paddingVertical: 16,
     borderRadius: BorderRadius.md,
-  },
-  buttonLogo: {
-    marginRight: 10,
   },
   buttonText: {
     color: "#fff",

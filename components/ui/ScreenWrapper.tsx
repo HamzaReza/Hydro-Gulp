@@ -1,9 +1,9 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { SafeAreaView, Edge } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
-import { useTheme } from '../../hooks/useTheme';
+import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { Edge, SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "../../hooks/useTheme";
 
 interface ScreenWrapperProps {
   children: React.ReactNode;
@@ -22,11 +22,12 @@ interface ScreenWrapperProps {
 
 export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
   children,
-  edges = ['top', 'left', 'right'],
+  edges = ["top", "left", "right"],
   gradientColors,
 }) => {
   const theme = useTheme();
-  const colors = gradientColors ?? ([theme.gradientStart, theme.gradientEnd] as const);
+  const colors =
+    gradientColors ?? ([theme.gradientStart, theme.gradientEnd] as const);
 
   return (
     <View style={styles.root}>
@@ -35,11 +36,7 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
        * over the gradient — the bar area becomes the same colour as the screen.
        * StatusBar style (light/dark icons) matches the theme.
        */}
-      <StatusBar
-        style={theme.isDark ? 'light' : 'dark'}
-        translucent
-        backgroundColor="transparent"
-      />
+      <StatusBar style={theme.isDark ? "light" : "dark"} />
 
       {/* Gradient fills the FULL screen, including behind the status bar */}
       <LinearGradient colors={colors} style={StyleSheet.absoluteFillObject} />

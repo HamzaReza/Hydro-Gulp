@@ -1,6 +1,6 @@
-import { BlurView } from "expo-blur";
+import { BlurTargetView, BlurView } from "expo-blur";
 import React from "react";
-import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
+import { Platform, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 
 interface GlassCardProps {
@@ -17,14 +17,27 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   padding = 16,
 }) => {
   const theme = useTheme();
+  const blurTargetRef = React.useRef<View | null>(null);
+  const androidBlurProps =
+    Platform.OS === "android"
+      ? ({
+          blurMethod: "dimezisBlurViewSdk31Plus",
+          blurTarget: blurTargetRef,
+        } as const)
+      : {};
 
   return (
     <View style={[styles.root, style]}>
       <View style={[styles.glassLayer, { borderColor: theme.cardBorder }]}>
+        <BlurTargetView
+          ref={blurTargetRef}
+          style={StyleSheet.absoluteFillObject}
+        />
         <BlurView
           tint={theme.blurTint}
           intensity={intensity}
           style={StyleSheet.absoluteFillObject}
+          {...androidBlurProps}
         />
         <View
           style={[

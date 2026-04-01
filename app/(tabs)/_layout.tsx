@@ -1,14 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import { BlurTargetView, BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Tabs } from "expo-router";
 import React from "react";
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -19,11 +14,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";
 
 const TAB_ITEMS = [
-  { name: "index",     icon: "water-drop"    as const },
-  { name: "history",   icon: "history"        as const },
-  { name: "analytics", icon: "bar-chart"      as const },
-  { name: "reminders", icon: "notifications"  as const },
-  { name: "profile",   icon: "person"         as const },
+  { name: "index", icon: "water-drop" as const },
+  { name: "history", icon: "history" as const },
+  { name: "analytics", icon: "bar-chart" as const },
+  { name: "reminders", icon: "notifications" as const },
+  { name: "profile", icon: "person" as const },
 ];
 
 // ─── Single tab button ───────────────────────────────────────────────────────
@@ -42,7 +37,7 @@ function TabButton({
   inactiveColor: string;
 }) {
   const scale = useSharedValue(1);
-  const glow  = useSharedValue(0);
+  const glow = useSharedValue(0);
 
   React.useEffect(() => {
     if (focused) {
@@ -74,7 +69,11 @@ function TabButton({
       hitSlop={8}
     >
       <Animated.View
-        style={[styles.activePill, { backgroundColor: accentColor + "22" }, bgStyle]}
+        style={[
+          styles.activePill,
+          { backgroundColor: accentColor + "22" },
+          bgStyle,
+        ]}
       />
       <Animated.View style={iconStyle}>
         <MaterialIcons
@@ -90,28 +89,41 @@ function TabButton({
 // ─── Custom tab bar ──────────────────────────────────────────────────────────
 
 function CustomTabBar({ state, navigation }: any) {
-  const theme  = useTheme();
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const blurTargetRef = React.useRef<View | null>(null);
+  const androidBlurProps =
+    Platform.OS === "android"
+      ? ({
+          blurMethod: "dimezisBlurViewSdk31Plus",
+          blurTarget: blurTargetRef,
+        } as const)
+      : {};
 
   return (
     <View
-      style={[
-        styles.tabBarOuter,
-        { bottom: Math.max(insets.bottom, 16) + 4 },
-      ]}
+      style={[styles.tabBarOuter, { bottom: Math.max(insets.bottom, 16) + 4 }]}
       pointerEvents="box-none"
     >
       <View style={[styles.tabBarPill, { borderColor: theme.tabBarBorder }]}>
         {/* Blur + tinted backing */}
+        <BlurTargetView
+          ref={blurTargetRef}
+          style={StyleSheet.absoluteFillObject}
+        />
         <BlurView
           tint={theme.blurTint}
           intensity={70}
+          {...androidBlurProps}
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
         />
         <View
           style={{
             position: "absolute",
-            top: 0, left: 0, right: 0, bottom: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             backgroundColor: theme.tabBar,
             borderRadius: 36,
           }}

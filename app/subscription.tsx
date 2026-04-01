@@ -57,11 +57,7 @@ const PLANS = [
 function AppLogo() {
   return (
     <View style={styles.animationContainer}>
-      <Image
-        source={LogoImage}
-        style={styles.logoImage}
-        resizeMode="contain"
-      />
+      <Image source={LogoImage} style={styles.logoImage} resizeMode="contain" />
     </View>
   );
 }

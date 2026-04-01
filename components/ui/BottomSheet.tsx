@@ -1,4 +1,4 @@
-import { BlurView } from "expo-blur";
+import { BlurTargetView, BlurView } from "expo-blur";
 import React, { useCallback, useEffect } from "react";
 import {
   Dimensions,
@@ -44,6 +44,14 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const sheetHeight = SCREEN_HEIGHT * snapPoint;
+  const blurTargetRef = React.useRef<View | null>(null);
+  const androidBlurProps =
+    Platform.OS === "android"
+      ? ({
+          blurMethod: "dimezisBlurViewSdk31Plus",
+          blurTarget: blurTargetRef,
+        } as const)
+      : {};
   const translateY = useSharedValue(sheetHeight);
   const backdropOpacity = useSharedValue(0);
 
@@ -125,10 +133,15 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
             sheetStyle,
           ]}
         >
+          <BlurTargetView
+            ref={blurTargetRef}
+            style={StyleSheet.absoluteFillObject}
+          />
           <BlurView
             tint={theme.blurTint}
             intensity={80}
             style={StyleSheet.absoluteFillObject}
+            {...androidBlurProps}
           />
           <View
             style={[
