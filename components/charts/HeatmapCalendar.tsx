@@ -12,6 +12,9 @@ interface HeatmapCalendarProps {
   goal: number;
   maxMonthsBack?: number;
   onMonthChange: (year: number, month: number) => void;
+  /** When set, that day’s cell is outlined as selected */
+  selectedDate?: string | null;
+  onDatePress?: (dateStr: string) => void;
 }
 
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -23,6 +26,8 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
   goal,
   maxMonthsBack = 2,
   onMonthChange,
+  selectedDate,
+  onDatePress,
 }) => {
   const theme = useTheme();
   const dates = getDatesInMonth(year, month);
@@ -135,15 +140,23 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
             }
             const intensity = getIntensity(dateStr);
             const dayNum = parseInt(dateStr.split('-')[2], 10);
+            const isSelected = selectedDate === dateStr;
+            const CellWrapper = onDatePress ? TouchableOpacity : View;
             return (
-              <View
+              <CellWrapper
                 key={dateStr}
+                onPress={onDatePress ? () => onDatePress(dateStr) : undefined}
+                activeOpacity={onDatePress ? 0.7 : 1}
+                accessibilityRole={onDatePress ? "button" : undefined}
+                accessibilityLabel={
+                  onDatePress ? `Open logs for ${dateStr}` : undefined
+                }
                 style={[
                   styles.cell,
                   {
                     backgroundColor: getColor(intensity),
-                    borderColor: theme.cardBorder,
-                    borderWidth: 1,
+                    borderColor: isSelected ? theme.accent : theme.cardBorder,
+                    borderWidth: isSelected ? 2 : 1,
                   },
                 ]}
               >
@@ -155,7 +168,7 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
                 >
                   {dayNum}
                 </Text>
-              </View>
+              </CellWrapper>
             );
           })}
         </View>

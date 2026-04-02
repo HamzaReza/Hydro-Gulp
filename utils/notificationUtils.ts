@@ -87,10 +87,10 @@ export const parseTimeString = (timeString: string): { hour: number; minute: num
   };
 };
 
+/** On-the-hour times from first full hour at/after wake through last full hour before sleep. */
 export const generateSmartReminderTimes = (
   wakeTime: string,
-  sleepTime: string,
-  count: number
+  sleepTime: string
 ): string[] => {
   const wake = parseTimeString(wakeTime);
   const sleep = parseTimeString(sleepTime);
@@ -102,13 +102,23 @@ export const generateSmartReminderTimes = (
     sleepMinutes += 24 * 60;
   }
 
-  const interval = (sleepMinutes - wakeMinutes) / (count + 1);
-  const times: string[] = [];
+  let first = wakeMinutes;
+  if (first % 60 !== 0) {
+    first = first - (first % 60) + 60;
+  }
 
-  for (let i = 1; i <= count; i++) {
-    const totalMinutes = (wakeMinutes + interval * i) % (24 * 60);
-    const hour = Math.floor(totalMinutes / 60);
-    const minute = Math.floor(totalMinutes % 60);
+  const last = Math.floor((sleepMinutes - 1) / 60) * 60;
+
+  if (last < first) {
+    return [];
+  }
+
+  const day = 24 * 60;
+  const times: string[] = [];
+  for (let t = first; t <= last; t += 60) {
+    const m = t % day;
+    const hour = Math.floor(m / 60);
+    const minute = m % 60;
     times.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
   }
 

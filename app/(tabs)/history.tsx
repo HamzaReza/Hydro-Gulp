@@ -51,6 +51,9 @@ function HistoryScreen() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
+  const [heatmapSelectedDate, setHeatmapSelectedDate] = useState<string | null>(
+    null,
+  );
   const [heatmapYM, setHeatmapYM] = useState(() => {
     const d = new Date();
     return { y: d.getFullYear(), m: d.getMonth() };
@@ -121,9 +124,14 @@ function HistoryScreen() {
   };
 
   const historyDates = viewMode === "week" ? getLast7Days() : getLast31Days();
-  const datesWithLogs = historyDates.filter(
+  const datesWithLogsFromRange = historyDates.filter(
     (d) => logs[d] && logs[d].length > 0,
   );
+  const datesWithLogsMerged = (() => {
+    const merged = new Set(datesWithLogsFromRange);
+    if (heatmapSelectedDate) merged.add(heatmapSelectedDate);
+    return Array.from(merged).sort((a, b) => b.localeCompare(a));
+  })();
 
   const calendarData: Record<string, number> = {};
   Object.entries(logs).forEach(([date, dayLogs]) => {
@@ -226,10 +234,12 @@ function HistoryScreen() {
             { label: "Perfect Days", value: `${perfectDays}`, emoji: "✅" },
           ].map((stat) => (
             <GlassCard key={stat.label} style={styles.statCard} padding={14}>
-              <Text style={styles.statEmoji}>{stat.emoji}</Text>
-              <Text style={[styles.statValue, { color: theme.text }]}>
-                {stat.value}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={styles.statEmoji}>{stat.emoji}</Text>
+                <Text style={[styles.statValue, { color: theme.text }]}>
+                  {stat.value}
+                </Text>
+              </View>
               <Text style={[styles.statLabel, { color: theme.textSecondary }]}>
                 {stat.label}
               </Text>
@@ -247,6 +257,19 @@ function HistoryScreen() {
               goal={goal}
               maxMonthsBack={2}
               onMonthChange={(y, m) => setHeatmapYM({ y, m })}
+              selectedDate={heatmapSelectedDate}
+              onDatePress={(dateStr) => {
+                // Tapping the same day again should unselect it.
+                if (heatmapSelectedDate === dateStr) {
+                  setHeatmapSelectedDate(null);
+                  setExpandedDates(new Set());
+                  return;
+                }
+
+                setHeatmapSelectedDate(dateStr);
+                // Heatmap selection should show only that day's logs.
+                setExpandedDates(new Set([dateStr]));
+              }}
             />
           </GlassCard>
         ) : (
@@ -262,6 +285,19 @@ function HistoryScreen() {
                 goal={goal}
                 maxMonthsBack={2}
                 onMonthChange={(y, m) => setHeatmapYM({ y, m })}
+                selectedDate={heatmapSelectedDate}
+                onDatePress={(dateStr) => {
+                  // Tapping the same day again should unselect it.
+                  if (heatmapSelectedDate === dateStr) {
+                    setHeatmapSelectedDate(null);
+                    setExpandedDates(new Set());
+                    return;
+                  }
+
+                  setHeatmapSelectedDate(dateStr);
+                  // Heatmap selection should show only that day's logs.
+                  setExpandedDates(new Set([dateStr]));
+                }}
               />
             </PremiumLock>
           </GlassCard>
@@ -271,7 +307,7 @@ function HistoryScreen() {
         <Text style={[styles.sectionTitle, { color: theme.text }]}>
           Log History
         </Text>
-        {datesWithLogs.length === 0 ? (
+        {datesWithLogsMerged.length === 0 ? (
           <GlassCard style={styles.emptyCard}>
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>📋</Text>
@@ -281,10 +317,7 @@ function HistoryScreen() {
             </View>
           </GlassCard>
         ) : (
-          datesWithLogs
-            .slice()
-            .reverse()
-            .map((date) => {
+          datesWithLogsMerged.map((date) => {
               const dayLogs = logs[date] || [];
               const dayRawTotal = dayLogs.reduce((sum, l) => sum + l.amount, 0);
               const dayTotal = dayLogs.reduce(
@@ -345,6 +378,16 @@ function HistoryScreen() {
 
                   {isExpanded && (
                     <View style={styles.dayLogs}>
+                      {dayLogs.length === 0 ? (
+                        <Text
+                          style={[
+                            styles.emptyDayLog,
+                            { color: theme.textSecondary },
+                          ]}
+                        >
+                          No entries for this day.
+                        </Text>
+                      ) : null}
                       {dayLogs.map((log) => {
                         const drink =
                           DRINK_TYPES.find((d) => d.id === log.type) ||
@@ -378,8 +421,14 @@ function HistoryScreen() {
                                 {formatAmount(log.amount, unit)}
                               </Text>
                               {log.hydrationValue !== log.amount && (
-                                <Text style={[styles.logEffective, { color: theme.textSecondary }]}>
-                                  {formatAmount(log.hydrationValue, unit)} effective
+                                <Text
+                                  style={[
+                                    styles.logEffective,
+                                    { color: theme.textSecondary },
+                                  ]}
+                                >
+                                  {formatAmount(log.hydrationValue, unit)}{" "}
+                                  effective
                                 </Text>
                               )}
                             </View>
@@ -517,6 +566,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   dayLogs: { paddingHorizontal: 14, paddingBottom: 10 },
+  emptyDayLog: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.regular,
+    paddingVertical: 8,
+    paddingTop: 0,
+  },
   logRow: {
     flexDirection: "row",
     alignItems: "center",

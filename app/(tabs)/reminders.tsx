@@ -19,7 +19,12 @@ import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
-import { BorderRadius, Colors, FontFamily, FontSize } from "../../constants/theme";
+import {
+  BorderRadius,
+  Colors,
+  FontFamily,
+  FontSize,
+} from "../../constants/theme";
 import { db } from "../../firebase";
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
@@ -187,18 +192,17 @@ function RemindersScreen() {
 
   const handleGenerateSmartReminders = async () => {
     if (!isPremium) return;
-    const count = 6;
     const times = generateSmartReminderTimes(
       wakeTime || "07:00",
       sleepTime || "23:00",
-      count,
     );
 
     const existingTimes = new Set(reminders.map((r) => r.time));
+    const baseTs = Date.now();
     const newReminders = times
       .filter((time) => !existingTimes.has(time))
       .map((time, i) => ({
-        id: `smart-${Date.now()}-${i}`,
+        id: `smart-${baseTs}-${i}`,
         time,
         enabled: true,
         label: "Time to hydrate!",
@@ -208,20 +212,25 @@ function RemindersScreen() {
     if (newReminders.length === 0) {
       Alert.alert(
         "No New Reminders",
-        "All generated times already have reminders set.",
+        times.length === 0
+          ? "Your wake and sleep times leave no hourly slots. Adjust them in Profile."
+          : "All generated times already have reminders set.",
         [{ text: "OK" }],
       );
       return;
     }
 
     for (const r of newReminders) {
-      dispatch(addReminder(r));
       const { hour, minute } = parseTimeString(r.time);
+      let notificationId: string | undefined;
       if (notificationsEnabled) {
-        await scheduleReminder(r.id, hour, minute, r.label);
+        notificationId =
+          (await scheduleReminder(r.id, hour, minute, r.label)) || undefined;
       }
+      const saved = { ...r, notificationId };
+      dispatch(addReminder(saved));
       if (uid) {
-        await setDoc(doc(db, "users", uid, "reminders", r.id), r).catch(
+        await setDoc(doc(db, "users", uid, "reminders", r.id), saved).catch(
           () => {},
         );
       }
@@ -230,7 +239,7 @@ function RemindersScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert(
       "Smart Reminders Set!",
-      `${count} reminders added between ${wakeTime} and ${sleepTime}.`,
+      `${newReminders.length} hourly reminders added between ${wakeTime || "07:00"} and ${sleepTime || "23:00"}.`,
     );
   };
 
@@ -298,8 +307,7 @@ function RemindersScreen() {
                 { color: theme.textSecondary, marginBottom: 16 },
               ]}
             >
-              Auto-space {6} reminders between {wakeTime || "07:00"} –{" "}
-              {sleepTime || "23:00"}
+              {`One reminder every hour while you're awake (${wakeTime || "07:00"} – ${sleepTime || "23:00"})`}
             </Text>
             <GradientButton
               label="Generate Smart Schedule"
@@ -320,8 +328,7 @@ function RemindersScreen() {
               </Text>
             </View>
             <Text style={[styles.settingDesc, { color: theme.textSecondary }]}>
-              Upgrade to Pro for up to 8 smart reminders automatically spaced
-              throughout your day.
+              {`Upgrade to Pro for hourly hydration reminders for every hour you're awake (based on your wake and sleep times).`}
             </Text>
           </GlassCard>
         )}
@@ -356,9 +363,14 @@ function RemindersScreen() {
             padding={12}
           >
             <View style={styles.limitRow}>
-              <MaterialIcons name="warning-amber" size={16} color={Colors.warning} />
+              <MaterialIcons
+                name="warning-amber"
+                size={16}
+                color={Colors.warning}
+              />
               <Text style={[styles.limitText, { color: Colors.warning }]}>
-                Free plan: 1 reminder max. Upgrade to Pro for unlimited reminders.
+                Free plan: 1 reminder max. Upgrade to Pro for unlimited
+                reminders.
               </Text>
             </View>
           </GlassCard>
@@ -377,60 +389,67 @@ function RemindersScreen() {
             </View>
           </GlassCard>
         ) : (
-          [...reminders].sort((a, b) => a.time.localeCompare(b.time)).map((reminder) => (
-            <GlassCard
-              key={reminder.id}
-              style={styles.reminderCard}
-              padding={16}
-            >
-              <View style={styles.reminderRow}>
-                {/* Left info */}
-                <View style={styles.reminderLeft}>
-                  <View style={styles.reminderTimeLine}>
-                    <Text style={[styles.reminderTime, { color: theme.text }]}>
-                      {reminder.time}
+          [...reminders]
+            .sort((a, b) => a.time.localeCompare(b.time))
+            .map((reminder) => (
+              <GlassCard
+                key={reminder.id}
+                style={styles.reminderCard}
+                padding={16}
+              >
+                <View style={styles.reminderRow}>
+                  {/* Left info */}
+                  <View style={styles.reminderLeft}>
+                    <View style={styles.reminderTimeLine}>
+                      <Text
+                        style={[styles.reminderTime, { color: theme.text }]}
+                      >
+                        {reminder.time}
+                      </Text>
+                      {reminder.smartReminder && (
+                        <Text style={styles.smartBadge}>SMART</Text>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.reminderLabel,
+                        { color: theme.textSecondary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {reminder.label}
                     </Text>
-                    {reminder.smartReminder && (
-                      <Text style={styles.smartBadge}>SMART</Text>
-                    )}
                   </View>
-                  <Text
-                    style={[styles.reminderLabel, { color: theme.textSecondary }]}
-                    numberOfLines={1}
-                  >
-                    {reminder.label}
-                  </Text>
-                </View>
 
-                {/* Right actions */}
-                <View style={styles.reminderActions}>
-                  <Switch
-                    value={reminder.enabled}
-                    onValueChange={() => handleToggleReminder(reminder.id)}
-                    trackColor={{
-                      false: theme.progressBackground,
-                      true: theme.accent,
-                    }}
-                    thumbColor="#fff"
-                  />
-                  <TouchableOpacity
-                    onPress={() => handleDeleteReminder(reminder.id)}
-                    style={[
-                      styles.deleteBtn,
-                      { backgroundColor: Colors.error + "18" },
-                    ]}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <MaterialIcons
-                      name="delete-outline"
-                      size={18}
-                      color={Colors.error}
+                  {/* Right actions */}
+                  <View style={styles.reminderActions}>
+                    <Switch
+                      value={reminder.enabled}
+                      onValueChange={() => handleToggleReminder(reminder.id)}
+                      trackColor={{
+                        false: theme.progressBackground,
+                        true: theme.accent,
+                      }}
+                      thumbColor="#fff"
                     />
-                  </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteReminder(reminder.id)}
+                      style={[
+                        styles.deleteBtn,
+                        { backgroundColor: Colors.error + "18" },
+                      ]}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <MaterialIcons
+                        name="delete-outline"
+                        size={18}
+                        color={Colors.error}
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            </GlassCard>
-          ))
+              </GlassCard>
+            ))
         )}
 
         {/* Timeline visualization */}

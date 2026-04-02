@@ -20,6 +20,7 @@ const TAB_ICONS: Record<
   index: "water-drop",
   history: "history",
   analytics: "bar-chart",
+  ai: "psychology",
   reminders: "notifications",
   profile: "person",
 };
@@ -170,7 +171,15 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <CustomTabBar {...props} />}
-    />
+    >
+      {/* Tab bar left-to-right order follows this list — reorder <Tabs.Screen /> to change */}
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="history" />
+      <Tabs.Screen name="analytics" />
+      <Tabs.Screen name="ai" />
+      <Tabs.Screen name="reminders" />
+      <Tabs.Screen name="profile" />
+    </Tabs>
   );
 }
 
@@ -205,7 +214,7 @@ const styles = StyleSheet.create({
       android: { elevation: 12 },
     }),
     // width — not full-screen, feels floating
-    width: 300,
+    width: 348,
   },
   tabButton: {
     flex: 1,
