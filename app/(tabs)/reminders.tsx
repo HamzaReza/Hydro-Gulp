@@ -44,6 +44,13 @@ import {
   scheduleReminder,
 } from "../../utils/notificationUtils";
 
+/** Firestore rejects `undefined`; optional fields must be omitted instead. */
+function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined),
+  ) as T;
+}
+
 function RemindersScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -96,10 +103,13 @@ function RemindersScreen() {
     }
 
     if (uid) {
-      await setDoc(doc(db, "users", uid, "reminders", reminderId), {
-        ...reminder,
-        enabled: !reminder.enabled,
-      }).catch(() => {});
+      await setDoc(
+        doc(db, "users", uid, "reminders", reminderId),
+        stripUndefined({
+          ...reminder,
+          enabled: !reminder.enabled,
+        }),
+      ).catch(() => {});
     }
   };
 
@@ -155,9 +165,10 @@ function RemindersScreen() {
     }
 
     if (uid) {
-      await setDoc(doc(db, "users", uid, "reminders", id), reminder).catch(
-        () => {},
-      );
+      await setDoc(
+        doc(db, "users", uid, "reminders", id),
+        stripUndefined(reminder),
+      ).catch(() => {});
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -230,9 +241,10 @@ function RemindersScreen() {
       const saved = { ...r, notificationId };
       dispatch(addReminder(saved));
       if (uid) {
-        await setDoc(doc(db, "users", uid, "reminders", r.id), saved).catch(
-          () => {},
-        );
+        await setDoc(
+          doc(db, "users", uid, "reminders", r.id),
+          stripUndefined(saved),
+        ).catch(() => {});
       }
     }
 

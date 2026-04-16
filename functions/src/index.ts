@@ -1,7 +1,36 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
-const MODEL = "stepfun/step-3.5-flash:free";
+initializeApp();
+
+/** Primary first; if that model is rate-limited or unavailable, the next is used. Override with OPENROUTER_MODELS=comma,separated,ids */
+const DEFAULT_MODELS = [
+  "qwen/qwen3.6-plus:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+];
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+
+function getModelChain(): string[] {
+  const raw = process.env.OPENROUTER_MODELS?.trim();
+  if (raw) {
+    const parsed = raw.split(",").map((m) => m.trim()).filter(Boolean);
+    if (parsed.length > 0) return parsed;
+  }
+  return DEFAULT_MODELS;
+}
+
+/** HTTP statuses where trying another model may help (quota / rate / transient). */
+function shouldTryNextModel(status: number): boolean {
+  return (
+    status === 429 ||
+    status === 402 ||
+    status === 503 ||
+    status === 502
+  );
+}
 
 interface InsightInput {
   todayTotal: number;
@@ -72,32 +101,52 @@ export const getAIInsight = onCall(
       throw new HttpsError("invalid-argument", "Invalid input data.");
     }
 
-    let response: Response;
-    try {
-      response = await fetch(ENDPOINT, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://hydrogulp.app",
-          "X-OpenRouter-Title": "HydroGulp",
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: [{ role: "user", content: buildPrompt(data) }],
-          max_tokens: 1500,
-          temperature: 0.7,
-        }),
-      });
-    } catch (err) {
-      console.error("OpenRouter fetch failed:", err);
-      throw new HttpsError("unavailable", "Could not reach AI service.");
+    const models = getModelChain();
+    const prompt = buildPrompt(data);
+    let response: Response | undefined;
+
+    for (let i = 0; i < models.length; i++) {
+      const model = models[i];
+      try {
+        response = await fetch(ENDPOINT, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://hydrogulp.app",
+            "X-OpenRouter-Title": "HydroGulp",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 1500,
+            temperature: 0.7,
+          }),
+        });
+      } catch (err) {
+        console.error(`OpenRouter fetch failed (model ${model}):`, err);
+        if (i === models.length - 1) {
+          throw new HttpsError("unavailable", "Could not reach AI service.");
+        }
+        continue;
+      }
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        console.error(
+          `OpenRouter ${response.status} for model ${model}:`,
+          errText,
+        );
+        if (shouldTryNextModel(response.status) && i < models.length - 1) {
+          continue;
+        }
+        throw new HttpsError("internal", `AI service error: ${response.status}`);
+      }
+      break;
     }
 
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      console.error(`OpenRouter ${response.status}:`, body);
-      throw new HttpsError("internal", `AI service error: ${response.status}`);
+    if (!response?.ok) {
+      throw new HttpsError("internal", "AI service error: no model succeeded.");
     }
 
     const json = await response.json() as {
@@ -133,5 +182,80 @@ export const getAIInsight = onCall(
     }
 
     return { quote: parsed.quote, suggestion: parsed.suggestion };
+  },
+);
+
+export const deleteAccountByEmail = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const email = (request.data as { email?: string })?.email;
+
+    if (!email || typeof email !== "string") {
+      throw new HttpsError("invalid-argument", "Email is required.");
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      throw new HttpsError("invalid-argument", "Invalid email format.");
+    }
+
+    try {
+      const db = getFirestore();
+      const auth = getAuth();
+
+      // Find user by email in Firestore
+      const usersSnapshot = await db.collection("users").get();
+
+      let userDocId: string | null = null;
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        if (userData.email && userData.email.toLowerCase() === normalizedEmail) {
+          userDocId = userDoc.id;
+          break;
+        }
+      }
+
+      if (!userDocId) {
+        throw new HttpsError(
+          "not-found",
+          "No account found with this email address.",
+        );
+      }
+
+      // Delete all subcollections
+      const logsSnapshot = await db.collection("users").doc(userDocId).collection("logs").get();
+      await Promise.all(logsSnapshot.docs.map((d) => d.ref.delete()));
+
+      const remindersSnapshot = await db.collection("users").doc(userDocId).collection("reminders").get();
+      await Promise.all(remindersSnapshot.docs.map((d) => d.ref.delete()));
+
+      // Delete user document
+      await db.collection("users").doc(userDocId).delete();
+
+      // Attempt to delete Firebase Auth account
+      try {
+        await auth.deleteUser(userDocId);
+      } catch (authError: any) {
+        // Log but don't fail if auth account doesn't exist
+        console.warn(
+          `Could not delete auth account for ${userDocId}: ${authError.message}`,
+        );
+      }
+
+      return {
+        success: true,
+        message: `Account and all associated data for ${normalizedEmail} have been deleted.`,
+      };
+    } catch (error: any) {
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      console.error("Delete account error:", error);
+      throw new HttpsError(
+        "internal",
+        "An error occurred while processing your deletion request.",
+      );
+    }
   },
 );

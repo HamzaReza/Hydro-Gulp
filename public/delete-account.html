@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Account & Data - HydroGulp</title>
+    <style>
+        :root {
+            --bg: #f7f8f0;
+            --card: #ffffff;
+            --text: #355872;
+            --text-secondary: #7aaace;
+            --accent: #7aaace;
+            --accent-light: #9cd5ff;
+            --destructive: #ff6b6b;
+            --warning: #ffc107;
+            --success: #4caf50;
+            --shadow: rgba(53, 88, 114, 0.15);
+            --input-bg: rgba(154, 213, 255, 0.15);
+            --input-border: rgba(122, 170, 206, 0.4);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a2e3d;
+                --card: #243d52;
+                --card-border: rgba(156, 213, 255, 0.22);
+                --text: #f7f8f0;
+                --text-secondary: #9cd5ff;
+                --accent: #9cd5ff;
+                --accent-light: #9cd5ff;
+                --shadow: rgba(0, 0, 0, 0.4);
+                --input-bg: rgba(53, 88, 114, 0.4);
+                --input-border: rgba(154, 213, 255, 0.25);
+            }
+        }
+
+        :root {
+            --card-border: rgba(53, 88, 114, 0.14);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: background-color 0.3s;
+        }
+
+        .container {
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px var(--shadow);
+            max-width: 500px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .warning-box {
+            background: var(--input-bg);
+            border-left: 4px solid var(--accent);
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .warning-box strong {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--input-border);
+            background: var(--input-bg);
+            color: var(--text);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input[type="email"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(122, 170, 206, 0.1);
+        }
+
+        input[type="email"]::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.6;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: var(--input-bg);
+            border-radius: 8px;
+        }
+
+        input[type="checkbox"] {
+            margin-top: 3px;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+
+        .checkbox-label {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-cancel {
+            background: var(--input-bg);
+            color: var(--text);
+            border: 2px solid var(--input-border);
+        }
+
+        .btn-cancel:hover {
+            background: var(--input-border);
+            border-color: var(--accent);
+        }
+
+        .btn-delete {
+            background: var(--destructive);
+            color: white;
+        }
+
+        .btn-delete:hover:not(:disabled) {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 107, 0.2);
+        }
+
+        .btn-delete:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.success {
+            background: rgba(76, 175, 80, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            display: block;
+        }
+
+        .message.error {
+            background: rgba(255, 107, 107, 0.15);
+            color: var(--destructive);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            display: block;
+        }
+
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-delete:disabled .spinner {
+            display: block;
+        }
+
+        .info-list {
+            background: var(--input-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .info-list strong {
+            display: block;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .info-list ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-list li {
+            padding-left: 20px;
+            position: relative;
+            margin-bottom: 6px;
+        }
+
+        .info-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Delete Account & Data</h1>
+            <p>Request permanent deletion of your HydroGulp account and all associated data.</p>
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Warning</strong>
+            This action cannot be undone. All your data will be permanently deleted from our servers.
+        </div>
+
+        <div class="info-list">
+            <strong>Data that will be deleted:</strong>
+            <ul>
+                <li>Your account profile and settings</li>
+                <li>All water intake logs and history</li>
+                <li>All reminders and preferences</li>
+                <li>Any associated analytics</li>
+            </ul>
+        </div>
+
+        <form id="deleteForm">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="your.email@example.com"
+                    required
+                    autocomplete="email"
+                >
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="confirm" name="confirm" required>
+                <label for="confirm" class="checkbox-label">
+                    I understand this will permanently delete my account and all my data, and this action cannot be undone.
+                </label>
+            </div>
+
+            <div class="button-group">
+                <button type="button" class="btn-cancel" onclick="goBack()">Cancel</button>
+                <button type="submit" class="btn-delete" id="submitBtn">
+                    <span id="btnText">Delete Account</span>
+                    <div class="spinner"></div>
+                </button>
+            </div>
+
+            <div class="message" id="message"></div>
+        </form>
+    </div>
+
+    <script src="/__/firebase/12.11.0/firebase-app-compat.js"></script>
+    <script src="/__/firebase/12.11.0/firebase-auth-compat.js"></script>
+    <script src="/__/firebase/12.11.0/firebase-firestore-compat.js"></script>
+    <script src="/__/firebase/12.11.0/firebase-functions-compat.js"></script>
+    <script src="/__/firebase/init.js?useEmulator=true"></script>
+
+    <script>
+        const form = document.getElementById('deleteForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const messageEl = document.getElementById('message');
+        const emailInput = document.getElementById('email');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = emailInput.value.trim().toLowerCase();
+
+            if (!email) {
+                showMessage('Please enter your email address', 'error');
+                return;
+            }
+
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showMessage('Please enter a valid email address', 'error');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            messageEl.className = 'message';
+
+            try {
+                const deleteAccountRequest = firebase.functions().httpsCallable('deleteAccountByEmail');
+                const response = await deleteAccountRequest({ email });
+
+                showMessage('Account deletion request submitted. We will process your request within 30 days.', 'success');
+                form.reset();
+                submitBtn.disabled = false;
+            } catch (error) {
+                console.error('Error:', error);
+                let errorMsg = 'Failed to submit deletion request. Please try again.';
+
+                if (error.code === 'functions/not-found') {
+                    errorMsg = 'Deletion function is not available. Please contact support.';
+                } else if (error.code === 'functions/permission-denied') {
+                    errorMsg = 'Permission denied. Please try again.';
+                } else if (error.code === 'functions/invalid-argument') {
+                    errorMsg = error.message || 'Invalid email address.';
+                } else if (error.message) {
+                    errorMsg = error.message;
+                }
+
+                showMessage(errorMsg, 'error');
+                submitBtn.disabled = false;
+            }
+        });
+
+        function showMessage(text, type) {
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            messageEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function goBack() {
+            window.history.back();
+        }
+    </script>
+</body>
+</html>

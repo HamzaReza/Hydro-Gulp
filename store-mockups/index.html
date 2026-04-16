@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hydro: Gulp — Store mockups (real screenshots)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --frame: #1e2a36;
+        --canvas-bg: linear-gradient(165deg, #152a38 0%, #0f1822 50%, #1a2835 100%);
+        --pad: #0d1520;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Space Grotesk", system-ui, sans-serif;
+        background: var(--pad);
+        color: #c8d4e0;
+      }
+
+      .instructions {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 28px 20px 36px;
+        line-height: 1.55;
+        font-size: 15px;
+      }
+
+      .instructions h1 {
+        font-size: 22px;
+        font-weight: 600;
+        color: #fff;
+        margin: 0 0 12px;
+      }
+
+      .instructions h2 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #b8c9d9;
+        margin: 24px 0 8px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .instructions code {
+        background: rgba(255, 255, 255, 0.08);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+
+      /* ─── Export canvases ─── */
+      .canvas-phone,
+      .canvas-t7 {
+        width: 1024px;
+        height: 1024px;
+        margin: 0 auto 36px;
+        position: relative;
+        overflow: hidden;
+        background: var(--canvas-bg);
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5);
+      }
+
+      .canvas-t10 {
+        width: 2048px;
+        height: 2048px;
+        margin: 0 auto 48px;
+        position: relative;
+        overflow: hidden;
+        background: var(--canvas-bg);
+        box-shadow: 0 36px 90px rgba(0, 0, 0, 0.55);
+      }
+
+      .canvas-t10 .scale2 {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1024px;
+        height: 1024px;
+        transform: scale(2);
+        transform-origin: 0 0;
+      }
+
+      /* Phone: device + prominent side caption (alternates L/R) inside 1024² */
+      .canvas-phone {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 36px 52px;
+        padding: 28px 40px;
+      }
+
+      /* Body: instructions = child 1. Phone blocks: 2,4,6,8 = caption left; 3,5,7 = caption right */
+      .canvas-phone:nth-child(even) {
+        flex-direction: row;
+      }
+
+      .canvas-phone:nth-child(odd) {
+        flex-direction: row-reverse;
+      }
+
+      .phone-caption {
+        flex: 0 1 400px;
+        margin: 0;
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1.28;
+        letter-spacing: -0.02em;
+        color: #f2f8ff;
+        text-shadow:
+          0 1px 0 rgba(0, 0, 0, 0.35),
+          0 4px 24px rgba(0, 0, 0, 0.35);
+      }
+
+      .canvas-phone:nth-child(even) .phone-caption {
+        text-align: left;
+      }
+
+      .canvas-phone:nth-child(odd) .phone-caption {
+        text-align: right;
+      }
+
+      /* Phone frame — portrait */
+      .device-phone {
+        position: relative;
+        flex-shrink: 0;
+        width: 340px;
+        height: 736px;
+        border-radius: 42px;
+        padding: 11px;
+        background: linear-gradient(145deg, #2f4154, #151c24);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.1),
+          0 24px 56px rgba(0, 0, 0, 0.45),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+
+      .phone-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 34px;
+        overflow: hidden;
+        background: #0f1c2e;
+        position: relative;
+      }
+
+      .phone-inner img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        display: block;
+      }
+
+      /* Tablet frame — landscape */
+      .device-tablet {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 900px;
+        height: 560px;
+        border-radius: 28px;
+        padding: 14px;
+        background: linear-gradient(145deg, #2f4154, #151c24);
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.1),
+          0 24px 56px rgba(0, 0, 0, 0.4),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+
+      .tablet-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 18px;
+        overflow: hidden;
+        background: #0f1c2e;
+        position: relative;
+      }
+
+      .tablet-inner img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
+        display: block;
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+        .instructions {
+          display: none;
+        }
+        .canvas-phone,
+        .canvas-t7,
+        .canvas-t10 {
+          margin: 0;
+          box-shadow: none;
+          page-break-after: always;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="instructions">
+      <h1>Hydro: Gulp — Play Store mockups</h1>
+      <p>
+        Real simulator screenshots are embedded below. Each block is a fixed size for export:
+        <strong>1024×1024</strong> (phone &amp; 7″ tablet slots) and <strong>2048×2048</strong> (10″
+        tablet, 2× scale).
+      </p>
+      <p>
+        Open this file in Chrome from the project folder (so <code>screenshots/*.png</code> load),
+        zoom one panel to fill the view, and capture at 1:1.
+      </p>
+      <h2>Files</h2>
+      <p style="font-size: 13px; opacity: 0.9">
+        <code>screenshots/01-today.png</code> ·
+        <code>02-history.png</code> ·
+        <code>03-analytics.png</code> ·
+        <code>04-ai-insights.png</code> ·
+        <code>05-onboarding.png</code> ·
+        <code>06-reminders.png</code> ·
+        <code>07-profile.png</code>
+      </p>
+      <p style="font-size: 13px; opacity: 0.85">
+        Replace any file in <code>store-mockups/screenshots/</code> (same filename) to update the
+        mockup without editing HTML.
+      </p>
+    </div>
+
+    <div class="canvas-phone">
+      <p class="phone-caption">
+        Log water and see your daily progress, quick-add buttons, and today’s drink list.
+      </p>
+      <div class="device-phone">
+        <div class="phone-inner">
+          <img src="screenshots/01-today.png" alt="Today" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-phone">
+      <p class="phone-caption">
+        Review weekly intake, streaks, and your monthly hydration calendar at a glance.
+      </p>
+      <div class="device-phone">
+        <div class="phone-inner">
+          <img src="screenshots/02-history.png" alt="History" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-phone">
+      <p class="phone-caption">
+        Explore averages, trends, drink breakdown, and how your hydration changes over time.
+      </p>
+      <div class="device-phone">
+        <div class="phone-inner">
+          <img src="screenshots/03-analytics.png" alt="Analytics" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-phone">
+      <p class="phone-caption">
+        Get personalized motivation and tips grounded in your real intake and goals.
+      </p>
+      <div class="device-phone">
+        <div class="phone-inner">
+          <img src="screenshots/04-ai-insights.png" alt="AI Insights" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-phone">
+      <p class="phone-caption">
+        Sign in with Google and start your hydration journey in a few quick steps.
+      </p>
+      <div class="device-phone">
+        <div class="phone-inner">
+          <img src="screenshots/05-onboarding.png" alt="Onboarding" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-phone">
+      <p class="phone-caption">
+        Turn on notifications and schedule reminders so you never fall behind on water.
+      </p>
+      <div class="device-phone">
+        <div class="phone-inner">
+          <img src="screenshots/06-reminders.png" alt="Reminders" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-phone">
+      <p class="phone-caption">
+        Set your daily goal, tweak preferences, and manage your Pro subscription.
+      </p>
+      <div class="device-phone">
+        <div class="phone-inner">
+          <img src="screenshots/07-profile.png" alt="Profile" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t7">
+      <div class="device-tablet">
+        <div class="tablet-inner">
+          <img src="screenshots/01-today.png" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t7">
+      <div class="device-tablet">
+        <div class="tablet-inner">
+          <img src="screenshots/02-history.png" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t7">
+      <div class="device-tablet">
+        <div class="tablet-inner">
+          <img src="screenshots/03-analytics.png" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t7">
+      <div class="device-tablet">
+        <div class="tablet-inner">
+          <img src="screenshots/04-ai-insights.png" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t7">
+      <div class="device-tablet">
+        <div class="tablet-inner">
+          <img src="screenshots/05-onboarding.png" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t7">
+      <div class="device-tablet">
+        <div class="tablet-inner">
+          <img src="screenshots/06-reminders.png" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t7">
+      <div class="device-tablet">
+        <div class="tablet-inner">
+          <img src="screenshots/07-profile.png" alt="" />
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t10">
+      <div class="scale2">
+        <div class="canvas-t7" style="margin: 0; box-shadow: none">
+          <div class="device-tablet">
+            <div class="tablet-inner">
+              <img src="screenshots/01-today.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t10">
+      <div class="scale2">
+        <div class="canvas-t7" style="margin: 0; box-shadow: none">
+          <div class="device-tablet">
+            <div class="tablet-inner">
+              <img src="screenshots/02-history.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t10">
+      <div class="scale2">
+        <div class="canvas-t7" style="margin: 0; box-shadow: none">
+          <div class="device-tablet">
+            <div class="tablet-inner">
+              <img src="screenshots/03-analytics.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t10">
+      <div class="scale2">
+        <div class="canvas-t7" style="margin: 0; box-shadow: none">
+          <div class="device-tablet">
+            <div class="tablet-inner">
+              <img src="screenshots/04-ai-insights.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t10">
+      <div class="scale2">
+        <div class="canvas-t7" style="margin: 0; box-shadow: none">
+          <div class="device-tablet">
+            <div class="tablet-inner">
+              <img src="screenshots/05-onboarding.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t10">
+      <div class="scale2">
+        <div class="canvas-t7" style="margin: 0; box-shadow: none">
+          <div class="device-tablet">
+            <div class="tablet-inner">
+              <img src="screenshots/06-reminders.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas-t10">
+      <div class="scale2">
+        <div class="canvas-t7" style="margin: 0; box-shadow: none">
+          <div class="device-tablet">
+            <div class="tablet-inner">
+              <img src="screenshots/07-profile.png" alt="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

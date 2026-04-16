@@ -1,9 +1,34 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAIInsight = void 0;
+exports.deleteAccountByEmail = exports.getAIInsight = void 0;
 const https_1 = require("firebase-functions/v2/https");
-const MODEL = "stepfun/step-3.5-flash:free";
+const app_1 = require("firebase-admin/app");
+const auth_1 = require("firebase-admin/auth");
+const firestore_1 = require("firebase-admin/firestore");
+(0, app_1.initializeApp)();
+/** Primary first; if that model is rate-limited or unavailable, the next is used. Override with OPENROUTER_MODELS=comma,separated,ids */
+const DEFAULT_MODELS = [
+    "qwen/qwen3.6-plus:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+];
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+function getModelChain() {
+    const raw = process.env.OPENROUTER_MODELS?.trim();
+    if (raw) {
+        const parsed = raw.split(",").map((m) => m.trim()).filter(Boolean);
+        if (parsed.length > 0)
+            return parsed;
+    }
+    return DEFAULT_MODELS;
+}
+/** HTTP statuses where trying another model may help (quota / rate / transient). */
+function shouldTryNextModel(status) {
+    return (status === 429 ||
+        status === 402 ||
+        status === 503 ||
+        status === 502);
+}
 function buildPrompt(d) {
     const pct = d.goal > 0 ? Math.round((d.todayTotal / d.goal) * 100) : 0;
     return `You are a friendly hydration coach inside a water-tracking app called HydroGulp. Analyze the user's hydration data below and respond ONLY with a valid JSON object — no markdown, no extra text, no explanation.
@@ -56,32 +81,47 @@ exports.getAIInsight = (0, https_1.onCall)({ region: "us-central1" }, async (req
         typeof data.hydrationScore !== "number") {
         throw new https_1.HttpsError("invalid-argument", "Invalid input data.");
     }
+    const models = getModelChain();
+    const prompt = buildPrompt(data);
     let response;
-    try {
-        response = await fetch(ENDPOINT, {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://hydrogulp.app",
-                "X-OpenRouter-Title": "HydroGulp",
-            },
-            body: JSON.stringify({
-                model: MODEL,
-                messages: [{ role: "user", content: buildPrompt(data) }],
-                max_tokens: 1500,
-                temperature: 0.7,
-            }),
-        });
+    for (let i = 0; i < models.length; i++) {
+        const model = models[i];
+        try {
+            response = await fetch(ENDPOINT, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://hydrogulp.app",
+                    "X-OpenRouter-Title": "HydroGulp",
+                },
+                body: JSON.stringify({
+                    model,
+                    messages: [{ role: "user", content: prompt }],
+                    max_tokens: 1500,
+                    temperature: 0.7,
+                }),
+            });
+        }
+        catch (err) {
+            console.error(`OpenRouter fetch failed (model ${model}):`, err);
+            if (i === models.length - 1) {
+                throw new https_1.HttpsError("unavailable", "Could not reach AI service.");
+            }
+            continue;
+        }
+        if (!response.ok) {
+            const errText = await response.text().catch(() => "");
+            console.error(`OpenRouter ${response.status} for model ${model}:`, errText);
+            if (shouldTryNextModel(response.status) && i < models.length - 1) {
+                continue;
+            }
+            throw new https_1.HttpsError("internal", `AI service error: ${response.status}`);
+        }
+        break;
     }
-    catch (err) {
-        console.error("OpenRouter fetch failed:", err);
-        throw new https_1.HttpsError("unavailable", "Could not reach AI service.");
-    }
-    if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        console.error(`OpenRouter ${response.status}:`, body);
-        throw new https_1.HttpsError("internal", `AI service error: ${response.status}`);
+    if (!response?.ok) {
+        throw new https_1.HttpsError("internal", "AI service error: no model succeeded.");
     }
     const json = await response.json();
     if (json.error) {
@@ -102,5 +142,58 @@ exports.getAIInsight = (0, https_1.onCall)({ region: "us-central1" }, async (req
         throw new https_1.HttpsError("internal", `Incomplete AI response. Raw: ${raw.slice(0, 300)}`);
     }
     return { quote: parsed.quote, suggestion: parsed.suggestion };
+});
+exports.deleteAccountByEmail = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+    const email = request.data?.email;
+    if (!email || typeof email !== "string") {
+        throw new https_1.HttpsError("invalid-argument", "Email is required.");
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        throw new https_1.HttpsError("invalid-argument", "Invalid email format.");
+    }
+    try {
+        const db = (0, firestore_1.getFirestore)();
+        const auth = (0, auth_1.getAuth)();
+        // Find user by email in Firestore
+        const usersSnapshot = await db.collection("users").get();
+        let userDocId = null;
+        for (const userDoc of usersSnapshot.docs) {
+            const userData = userDoc.data();
+            if (userData.email && userData.email.toLowerCase() === normalizedEmail) {
+                userDocId = userDoc.id;
+                break;
+            }
+        }
+        if (!userDocId) {
+            throw new https_1.HttpsError("not-found", "No account found with this email address.");
+        }
+        // Delete all subcollections
+        const logsSnapshot = await db.collection("users").doc(userDocId).collection("logs").get();
+        await Promise.all(logsSnapshot.docs.map((d) => d.ref.delete()));
+        const remindersSnapshot = await db.collection("users").doc(userDocId).collection("reminders").get();
+        await Promise.all(remindersSnapshot.docs.map((d) => d.ref.delete()));
+        // Delete user document
+        await db.collection("users").doc(userDocId).delete();
+        // Attempt to delete Firebase Auth account
+        try {
+            await auth.deleteUser(userDocId);
+        }
+        catch (authError) {
+            // Log but don't fail if auth account doesn't exist
+            console.warn(`Could not delete auth account for ${userDocId}: ${authError.message}`);
+        }
+        return {
+            success: true,
+            message: `Account and all associated data for ${normalizedEmail} have been deleted.`,
+        };
+    }
+    catch (error) {
+        if (error instanceof https_1.HttpsError) {
+            throw error;
+        }
+        console.error("Delete account error:", error);
+        throw new https_1.HttpsError("internal", "An error occurred while processing your deletion request.");
+    }
 });
 //# sourceMappingURL=index.js.map

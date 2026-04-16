@@ -1,15 +1,14 @@
-import { connectFunctionsEmulator, getFunctions, httpsCallable } from "firebase/functions";
-import { Platform } from "react-native";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "../firebase";
 
 const functions = getFunctions(app, "us-central1");
 
 // In dev builds, point at the local emulator instead of the deployed function.
 // iOS simulator can reach localhost directly; Android emulator uses 10.0.2.2.
-if (__DEV__) {
-  const host = Platform.OS === "android" ? "10.0.2.2" : "localhost";
-  connectFunctionsEmulator(functions, host, 5001);
-}
+// if (__DEV__) {
+//   const host = Platform.OS === "android" ? "10.0.2.2" : "localhost";
+//   connectFunctionsEmulator(functions, host, 5001);
+// }
 
 export interface HydrationInsightInput {
   todayTotal: number;
@@ -24,10 +23,10 @@ export interface HydrationInsightResult {
   suggestion: string;
 }
 
-const getAIInsightFn = httpsCallable<HydrationInsightInput, HydrationInsightResult>(
-  functions,
-  "getAIInsight",
-);
+const getAIInsightFn = httpsCallable<
+  HydrationInsightInput,
+  HydrationInsightResult
+>(functions, "getAIInsight");
 
 export async function fetchHydrationInsight(
   data: HydrationInsightInput,
