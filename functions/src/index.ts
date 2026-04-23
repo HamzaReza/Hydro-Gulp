@@ -1,7 +1,7 @@
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
 
 initializeApp();
 
@@ -256,6 +256,154 @@ export const deleteAccountByEmail = onCall(
         "internal",
         "An error occurred while processing your deletion request.",
       );
+    }
+  },
+);
+
+// ─── RevenueCat Webhook ───────────────────────────────────────────────────────
+//
+// Configure in RevenueCat dashboard:
+//   Project Settings → Integrations → Webhooks → Add webhook
+//   URL: https://<region>-<project>.cloudfunctions.net/revenuecatWebhook
+//   Authorization header value: set REVENUECAT_WEBHOOK_SECRET in Firebase env
+//     firebase functions:secrets:set REVENUECAT_WEBHOOK_SECRET
+//
+// RC sends the secret as:  Authorization: <your-secret>
+// ─────────────────────────────────────────────────────────────────────────────
+
+type RCEventType =
+  | "INITIAL_PURCHASE"
+  | "RENEWAL"
+  | "CANCELLATION"
+  | "EXPIRATION"
+  | "BILLING_ISSUES_DETECTED"
+  | "PRODUCT_CHANGE"
+  | "TRANSFER"
+  | "SUBSCRIBER_ALIAS"
+  | string;
+
+interface RCWebhookEvent {
+  type: RCEventType;
+  /** RC app user id — we set this to "${uid}+${email}" */
+  app_user_id: string;
+  product_id?: string;
+  /** Milliseconds */
+  expiration_at_ms?: number | null;
+  /** Milliseconds */
+  purchased_at_ms?: number;
+}
+
+interface RCWebhookPayload {
+  event: RCWebhookEvent;
+}
+
+const MONTHLY_PRODUCT_ID = "hydrogulp_monthly_399";
+const YEARLY_PRODUCT_ID = "hydrogulp_yearly_3599";
+
+function planFromProductId(productId?: string): "monthly" | "yearly" | null {
+  if (!productId) return null;
+  if (productId.includes(YEARLY_PRODUCT_ID)) return "yearly";
+  if (productId.includes(MONTHLY_PRODUCT_ID)) return "monthly";
+  // Fallback: infer from common naming patterns
+  if (productId.includes("year") || productId.includes("annual")) return "yearly";
+  if (productId.includes("month")) return "monthly";
+  return null;
+}
+
+/** The RC alias is the Firebase UID directly. */
+function uidFromAlias(alias: string): string {
+  return alias;
+}
+
+export const revenuecatWebhook = onRequest(
+  { region: "us-central1" },
+  async (req, res) => {
+    // Only accept POST
+    if (req.method !== "POST") {
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
+
+    // Verify authorization header
+    const secret = process.env.REVENUECAT_WEBHOOK_SECRET;
+    const authHeader = req.headers["authorization"] ?? "";
+    if (secret && authHeader !== secret) {
+      console.warn("[RC Webhook] Unauthorized request — invalid secret.");
+      res.status(401).send("Unauthorized");
+      return;
+    }
+
+    const payload = req.body as RCWebhookPayload;
+    const event = payload?.event;
+
+    if (!event?.type || !event?.app_user_id) {
+      res.status(400).send("Bad Request");
+      return;
+    }
+
+    const uid = uidFromAlias(event.app_user_id);
+    const db = getFirestore();
+    const userRef = db.collection("users").doc(uid);
+
+    console.log(`[RC Webhook] event=${event.type} uid=${uid} product=${event.product_id ?? "n/a"}`);
+
+    try {
+      switch (event.type) {
+        case "INITIAL_PURCHASE":
+        case "RENEWAL":
+        case "PRODUCT_CHANGE": {
+          const plan = planFromProductId(event.product_id);
+          const expiryMs = event.expiration_at_ms ?? null;
+          await userRef.update({
+            isPremium: true,
+            premiumPlan: plan,
+            premiumExpiry: expiryMs ? Timestamp.fromMillis(expiryMs) : null,
+          });
+          console.log(`[RC Webhook] ✓ Premium activated — uid=${uid} plan=${plan}`);
+          break;
+        }
+
+        case "CANCELLATION":
+          // Cancelled but not yet expired — keep premium until expiry date.
+          // RC will send EXPIRATION when access actually ends.
+          await userRef.update({
+            premiumCancelledAt: Timestamp.now(),
+          });
+          console.log(`[RC Webhook] ✓ Cancellation recorded — uid=${uid} (still active until expiry)`);
+          break;
+
+        case "EXPIRATION":
+          await userRef.update({
+            isPremium: false,
+            premiumPlan: null,
+            premiumExpiry: null,
+          });
+          console.log(`[RC Webhook] ✓ Premium expired — uid=${uid}`);
+          break;
+
+        case "BILLING_ISSUES_DETECTED":
+          // Keep premium active — RC will retry billing.
+          // Optionally surface this to the user via a flag.
+          await userRef.update({ premiumBillingIssue: true });
+          console.log(`[RC Webhook] ✓ Billing issue recorded — uid=${uid}`);
+          break;
+
+        default:
+          console.log(`[RC Webhook] Unhandled event type: ${event.type}`);
+          break;
+      }
+
+      res.status(200).send("OK");
+    } catch (error) {
+      console.error("[RC Webhook] Firestore update failed:", error);
+      // Return 200 anyway so RC doesn't keep retrying for a bad uid.
+      // Genuine server errors should return 500 so RC retries.
+      if ((error as any)?.code === 5 /* NOT_FOUND */) {
+        console.warn(`[RC Webhook] User doc not found for uid=${uid} — skipping.`);
+        res.status(200).send("OK");
+      } else {
+        res.status(500).send("Internal Server Error");
+      }
     }
   },
 );

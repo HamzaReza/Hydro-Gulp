@@ -8,7 +8,7 @@ import * as Updates from "expo-updates";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 import React, { useCallback, useEffect, useMemo } from "react";
-import { ActivityIndicator, StyleSheet, useColorScheme, View } from "react-native";
+import { ActivityIndicator, AppState, StyleSheet, useColorScheme, View } from "react-native";
 import {
   DarkTheme as NavigationDarkTheme,
   DefaultTheme as NavigationDefaultTheme,
@@ -29,9 +29,17 @@ import { clearUser, setUser } from "../store/slices/authSlice";
 import { setGoal, setUnit } from "../store/slices/hydrationSlice";
 import { fetchProfileThunk } from "../store/slices/profileSlice";
 import { fetchRemindersThunk } from "../store/slices/settingsSlice";
-import { setSubscription } from "../store/slices/subscriptionSlice";
+import { setSubscription, syncRevenueCatStatusThunk } from "../store/slices/subscriptionSlice";
+import {
+  configureRevenueCat,
+  loginRevenueCat,
+  logoutRevenueCat,
+} from "../services/revenuecat";
 
 SplashScreen.preventAutoHideAsync();
+
+// Configure RevenueCat before any user interaction
+configureRevenueCat();
 
 GoogleSignin.configure({
   webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
@@ -56,6 +64,15 @@ function AuthListener({ children }: { children: React.ReactNode }) {
           }),
         );
 
+        // Link this session to the app user in RevenueCat.
+        // Alias = uid+email so subscription is tied to both the app account
+        // and the store account (Google/Apple).
+        try {
+          await loginRevenueCat(user.uid);
+        } catch {
+          // Non-fatal — RC will stay in anonymous mode offline
+        }
+
         try {
           const snap = await getDoc(doc(db, "users", user.uid));
           if (snap.exists()) {
@@ -65,11 +82,11 @@ function AuthListener({ children }: { children: React.ReactNode }) {
             if (data.goal) dispatch(setGoal(data.goal));
             if (data.unit) dispatch(setUnit(data.unit));
 
+            // Seed Redux from Firestore cache immediately so the UI isn't blank
             const premiumExpiry =
               data.premiumExpiry instanceof Timestamp
                 ? data.premiumExpiry.toMillis()
                 : null;
-
             dispatch(
               setSubscription({
                 isPremium: data.isPremium || false,
@@ -77,17 +94,42 @@ function AuthListener({ children }: { children: React.ReactNode }) {
                 expiryDate: premiumExpiry,
               }),
             );
+
+            // Then fetch the live entitlement from RevenueCat and reconcile.
+            // This ensures the app reflects the real store status even if
+            // Firestore was stale (e.g. subscription expired, or restored on
+            // a new device).
+            dispatch(syncRevenueCatStatusThunk(user.uid));
           }
         } catch {
           // Offline — use cached Redux state
         }
       } else {
         dispatch(clearUser());
+        // Revert RevenueCat to anonymous on sign-out
+        try {
+          await logoutRevenueCat();
+        } catch {
+          // Safe to ignore
+        }
       }
     });
 
     return unsubscribe;
   }, [dispatch]);
+
+  // Re-sync entitlement whenever the app comes back to the foreground
+  // (handles cases like a subscription expiring while the app was backgrounded).
+  const uid = useSelector((state: RootState) => state.auth.uid);
+  useEffect(() => {
+    if (!uid) return;
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") {
+        dispatch(syncRevenueCatStatusThunk(uid));
+      }
+    });
+    return () => sub.remove();
+  }, [dispatch, uid]);
 
   useEffect(() => {
     const inAuthGroup = segments[0] === "(auth)";

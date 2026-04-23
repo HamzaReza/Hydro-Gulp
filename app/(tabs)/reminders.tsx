@@ -370,10 +370,7 @@ function RemindersScreen() {
         </View>
 
         {!isPremium && reminders.length >= 1 && (
-          <GlassCard
-            style={[styles.limitCard, { borderColor: Colors.warning + "40" }]}
-            padding={12}
-          >
+          <GlassCard style={styles.limitCard} padding={12}>
             <View style={styles.limitRow}>
               <MaterialIcons
                 name="warning-amber"
@@ -670,8 +667,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  limitCard: { marginBottom: 12, borderRadius: 12, borderWidth: 1 },
-  limitRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  limitCard: {
+    marginBottom: 12,
+  },
+  limitRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
   limitText: {
     fontSize: FontSize.sm,
     fontFamily: FontFamily.regular,
