@@ -66,7 +66,7 @@ function extractJSON(raw) {
     }
     return null;
 }
-exports.getAIInsight = (0, https_1.onCall)({ region: "us-central1" }, async (request) => {
+exports.getAIInsight = (0, https_1.onCall)({ region: "us-central1", secrets: ["OPENROUTER_API_KEY"] }, async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Must be signed in.");
     }
@@ -216,7 +216,7 @@ function planFromProductId(productId) {
 function uidFromAlias(alias) {
     return alias;
 }
-exports.revenuecatWebhook = (0, https_1.onRequest)({ region: "us-central1" }, async (req, res) => {
+exports.revenuecatWebhook = (0, https_1.onRequest)({ region: "us-central1", secrets: ["REVENUECAT_WEBHOOK_SECRET"] }, async (req, res) => {
     // Only accept POST
     if (req.method !== "POST") {
         res.status(405).send("Method Not Allowed");

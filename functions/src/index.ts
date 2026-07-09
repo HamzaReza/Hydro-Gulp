@@ -79,7 +79,7 @@ function extractJSON(raw: string): InsightResult | null {
 }
 
 export const getAIInsight = onCall(
-  { region: "us-central1" },
+  { region: "us-central1", secrets: ["OPENROUTER_API_KEY"] },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Must be signed in.");
@@ -316,7 +316,7 @@ function uidFromAlias(alias: string): string {
 }
 
 export const revenuecatWebhook = onRequest(
-  { region: "us-central1" },
+  { region: "us-central1", secrets: ["REVENUECAT_WEBHOOK_SECRET"] },
   async (req, res) => {
     // Only accept POST
     if (req.method !== "POST") {
