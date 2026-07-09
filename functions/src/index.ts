@@ -1,7 +1,7 @@
-import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
 
 initializeApp();
 
@@ -10,13 +10,17 @@ const DEFAULT_MODELS = [
   "qwen/qwen3.6-plus:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "meta-llama/llama-3.2-3b-instruct:free",
+  "meta-llama/llama-4-scout:free",
 ];
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 function getModelChain(): string[] {
   const raw = process.env.OPENROUTER_MODELS?.trim();
   if (raw) {
-    const parsed = raw.split(",").map((m) => m.trim()).filter(Boolean);
+    const parsed = raw
+      .split(",")
+      .map((m) => m.trim())
+      .filter(Boolean);
     if (parsed.length > 0) return parsed;
   }
   return DEFAULT_MODELS;
@@ -24,12 +28,7 @@ function getModelChain(): string[] {
 
 /** HTTP statuses where trying another model may help (quota / rate / transient). */
 function shouldTryNextModel(status: number): boolean {
-  return (
-    status === 429 ||
-    status === 402 ||
-    status === 503 ||
-    status === 502
-  );
+  return status === 429 || status === 402 || status === 503 || status === 502;
 }
 
 interface InsightInput {
@@ -60,19 +59,25 @@ Respond with exactly this JSON structure:
 
 function extractJSON(raw: string): InsightResult | null {
   // 1. Direct parse
-  try { return JSON.parse(raw.trim()) as InsightResult; } catch {}
+  try {
+    return JSON.parse(raw.trim()) as InsightResult;
+  } catch {}
 
   // 2. Strip markdown code fences
   const fenceStripped = raw
     .replace(/^```(?:json)?\s*/im, "")
     .replace(/\s*```\s*$/m, "")
     .trim();
-  try { return JSON.parse(fenceStripped) as InsightResult; } catch {}
+  try {
+    return JSON.parse(fenceStripped) as InsightResult;
+  } catch {}
 
   // 3. Extract first {...} block — handles prose before/after JSON
   const match = raw.match(/\{[\s\S]*\}/);
   if (match) {
-    try { return JSON.parse(match[0]) as InsightResult; } catch {}
+    try {
+      return JSON.parse(match[0]) as InsightResult;
+    } catch {}
   }
 
   return null;
@@ -140,7 +145,10 @@ export const getAIInsight = onCall(
         if (shouldTryNextModel(response.status) && i < models.length - 1) {
           continue;
         }
-        throw new HttpsError("internal", `AI service error: ${response.status}`);
+        throw new HttpsError(
+          "internal",
+          `AI service error: ${response.status}`,
+        );
       }
       break;
     }
@@ -149,14 +157,17 @@ export const getAIInsight = onCall(
       throw new HttpsError("internal", "AI service error: no model succeeded.");
     }
 
-    const json = await response.json() as {
+    const json = (await response.json()) as {
       choices?: { message?: { content?: string | null; reasoning?: string } }[];
       error?: unknown;
     };
 
     if (json.error) {
       console.error("OpenRouter API error:", json.error);
-      throw new HttpsError("internal", `OpenRouter error: ${JSON.stringify(json.error)}`);
+      throw new HttpsError(
+        "internal",
+        `OpenRouter error: ${JSON.stringify(json.error)}`,
+      );
     }
 
     const message = json?.choices?.[0]?.message;
@@ -165,8 +176,7 @@ export const getAIInsight = onCall(
     // into `reasoning` and the final answer into `content`. Fall back to `reasoning`
     // in case the model embeds the JSON there when content is null/empty.
     const raw: string =
-      (message?.content ?? "").trim() ||
-      (message?.reasoning ?? "").trim();
+      (message?.content ?? "").trim() || (message?.reasoning ?? "").trim();
 
     console.log("content:", message?.content ? "present" : "null");
     console.log("reasoning length:", message?.reasoning?.length ?? 0);
@@ -210,7 +220,10 @@ export const deleteAccountByEmail = onCall(
       let userDocId: string | null = null;
       for (const userDoc of usersSnapshot.docs) {
         const userData = userDoc.data();
-        if (userData.email && userData.email.toLowerCase() === normalizedEmail) {
+        if (
+          userData.email &&
+          userData.email.toLowerCase() === normalizedEmail
+        ) {
           userDocId = userDoc.id;
           break;
         }
@@ -224,10 +237,18 @@ export const deleteAccountByEmail = onCall(
       }
 
       // Delete all subcollections
-      const logsSnapshot = await db.collection("users").doc(userDocId).collection("logs").get();
+      const logsSnapshot = await db
+        .collection("users")
+        .doc(userDocId)
+        .collection("logs")
+        .get();
       await Promise.all(logsSnapshot.docs.map((d) => d.ref.delete()));
 
-      const remindersSnapshot = await db.collection("users").doc(userDocId).collection("reminders").get();
+      const remindersSnapshot = await db
+        .collection("users")
+        .doc(userDocId)
+        .collection("reminders")
+        .get();
       await Promise.all(remindersSnapshot.docs.map((d) => d.ref.delete()));
 
       // Delete user document
@@ -305,7 +326,8 @@ function planFromProductId(productId?: string): "monthly" | "yearly" | null {
   if (productId.includes(YEARLY_PRODUCT_ID)) return "yearly";
   if (productId.includes(MONTHLY_PRODUCT_ID)) return "monthly";
   // Fallback: infer from common naming patterns
-  if (productId.includes("year") || productId.includes("annual")) return "yearly";
+  if (productId.includes("year") || productId.includes("annual"))
+    return "yearly";
   if (productId.includes("month")) return "monthly";
   return null;
 }
@@ -345,7 +367,9 @@ export const revenuecatWebhook = onRequest(
     const db = getFirestore();
     const userRef = db.collection("users").doc(uid);
 
-    console.log(`[RC Webhook] event=${event.type} uid=${uid} product=${event.product_id ?? "n/a"}`);
+    console.log(
+      `[RC Webhook] event=${event.type} uid=${uid} product=${event.product_id ?? "n/a"}`,
+    );
 
     try {
       switch (event.type) {
@@ -359,7 +383,9 @@ export const revenuecatWebhook = onRequest(
             premiumPlan: plan,
             premiumExpiry: expiryMs ? Timestamp.fromMillis(expiryMs) : null,
           });
-          console.log(`[RC Webhook] ✓ Premium activated — uid=${uid} plan=${plan}`);
+          console.log(
+            `[RC Webhook] ✓ Premium activated — uid=${uid} plan=${plan}`,
+          );
           break;
         }
 
@@ -369,7 +395,9 @@ export const revenuecatWebhook = onRequest(
           await userRef.update({
             premiumCancelledAt: Timestamp.now(),
           });
-          console.log(`[RC Webhook] ✓ Cancellation recorded — uid=${uid} (still active until expiry)`);
+          console.log(
+            `[RC Webhook] ✓ Cancellation recorded — uid=${uid} (still active until expiry)`,
+          );
           break;
 
         case "EXPIRATION":
@@ -399,7 +427,9 @@ export const revenuecatWebhook = onRequest(
       // Return 200 anyway so RC doesn't keep retrying for a bad uid.
       // Genuine server errors should return 500 so RC retries.
       if ((error as any)?.code === 5 /* NOT_FOUND */) {
-        console.warn(`[RC Webhook] User doc not found for uid=${uid} — skipping.`);
+        console.warn(
+          `[RC Webhook] User doc not found for uid=${uid} — skipping.`,
+        );
         res.status(200).send("OK");
       } else {
         res.status(500).send("Internal Server Error");
