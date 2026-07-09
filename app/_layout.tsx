@@ -6,9 +6,9 @@ import { StatusBar } from "expo-status-bar";
 import { setBackgroundColorAsync } from "expo-system-ui";
 import * as Updates from "expo-updates";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, Timestamp } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, Timestamp } from "firebase/firestore";
 import React, { useCallback, useEffect, useMemo } from "react";
-import { ActivityIndicator, AppState, StyleSheet, useColorScheme, View } from "react-native";
+import { ActivityIndicator, StyleSheet, useColorScheme, View } from "react-native";
 import {
   DarkTheme as NavigationDarkTheme,
   DefaultTheme as NavigationDefaultTheme,
@@ -29,7 +29,7 @@ import { clearUser, setUser } from "../store/slices/authSlice";
 import { setGoal, setUnit } from "../store/slices/hydrationSlice";
 import { fetchProfileThunk } from "../store/slices/profileSlice";
 import { fetchRemindersThunk } from "../store/slices/settingsSlice";
-import { setSubscription, syncRevenueCatStatusThunk } from "../store/slices/subscriptionSlice";
+import { setSubscription } from "../store/slices/subscriptionSlice";
 import {
   configureRevenueCat,
   loginRevenueCat,
@@ -81,25 +81,8 @@ function AuthListener({ children }: { children: React.ReactNode }) {
             dispatch(fetchRemindersThunk(user.uid));
             if (data.goal) dispatch(setGoal(data.goal));
             if (data.unit) dispatch(setUnit(data.unit));
-
-            // Seed Redux from Firestore cache immediately so the UI isn't blank
-            const premiumExpiry =
-              data.premiumExpiry instanceof Timestamp
-                ? data.premiumExpiry.toMillis()
-                : null;
-            dispatch(
-              setSubscription({
-                isPremium: data.isPremium || false,
-                plan: data.premiumPlan || null,
-                expiryDate: premiumExpiry,
-              }),
-            );
-
-            // Then fetch the live entitlement from RevenueCat and reconcile.
-            // This ensures the app reflects the real store status even if
-            // Firestore was stale (e.g. subscription expired, or restored on
-            // a new device).
-            dispatch(syncRevenueCatStatusThunk(user.uid));
+            // Premium state is served by the realtime users/{uid} listener
+            // below — the RC webhook is the sole writer of it in Firestore.
           }
         } catch {
           // Offline — use cached Redux state
@@ -118,17 +101,28 @@ function AuthListener({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, [dispatch]);
 
-  // Re-sync entitlement whenever the app comes back to the foreground
-  // (handles cases like a subscription expiring while the app was backgrounded).
+  // Realtime premium state: the RC webhook is the sole writer of
+  // isPremium/premiumPlan/premiumExpiry in Firestore; the app just listens.
+  // Renewals, expirations and restores land here within ~1s — no manual
+  // re-sync on foreground needed.
   const uid = useSelector((state: RootState) => state.auth.uid);
   useEffect(() => {
     if (!uid) return;
-    const sub = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") {
-        dispatch(syncRevenueCatStatusThunk(uid));
-      }
+    const unsub = onSnapshot(doc(db, "users", uid), (snap) => {
+      const data = snap.data();
+      if (!data) return;
+      dispatch(
+        setSubscription({
+          isPremium: data.isPremium ?? false,
+          plan: data.premiumPlan ?? null,
+          expiryDate:
+            data.premiumExpiry instanceof Timestamp
+              ? data.premiumExpiry.toMillis()
+              : null,
+        }),
+      );
     });
-    return () => sub.remove();
+    return unsub;
   }, [dispatch, uid]);
 
   useEffect(() => {

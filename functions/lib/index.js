@@ -1,22 +1,27 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.revenuecatWebhook = exports.deleteAccountByEmail = exports.getAIInsight = void 0;
-const https_1 = require("firebase-functions/v2/https");
 const app_1 = require("firebase-admin/app");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
+const https_1 = require("firebase-functions/v2/https");
 (0, app_1.initializeApp)();
 /** Primary first; if that model is rate-limited or unavailable, the next is used. Override with OPENROUTER_MODELS=comma,separated,ids */
 const DEFAULT_MODELS = [
-    "qwen/qwen3.6-plus:free",
+    "openai/gpt-oss-120b:free",
+    "openai/gpt-oss-20b:free",
+    "google/gemma-4-31b-it:free",
     "meta-llama/llama-3.3-70b-instruct:free",
-    "meta-llama/llama-3.2-3b-instruct:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
 ];
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 function getModelChain() {
     const raw = process.env.OPENROUTER_MODELS?.trim();
     if (raw) {
-        const parsed = raw.split(",").map((m) => m.trim()).filter(Boolean);
+        const parsed = raw
+            .split(",")
+            .map((m) => m.trim())
+            .filter(Boolean);
         if (parsed.length > 0)
             return parsed;
     }
@@ -24,10 +29,7 @@ function getModelChain() {
 }
 /** HTTP statuses where trying another model may help (quota / rate / transient). */
 function shouldTryNextModel(status) {
-    return (status === 429 ||
-        status === 402 ||
-        status === 503 ||
-        status === 502);
+    return [404, 429, 402, 503, 502].includes(status);
 }
 function buildPrompt(d) {
     const pct = d.goal > 0 ? Math.round((d.todayTotal / d.goal) * 100) : 0;
@@ -123,7 +125,7 @@ exports.getAIInsight = (0, https_1.onCall)({ region: "us-central1", secrets: ["O
     if (!response?.ok) {
         throw new https_1.HttpsError("internal", "AI service error: no model succeeded.");
     }
-    const json = await response.json();
+    const json = (await response.json());
     if (json.error) {
         console.error("OpenRouter API error:", json.error);
         throw new https_1.HttpsError("internal", `OpenRouter error: ${JSON.stringify(json.error)}`);
@@ -132,8 +134,7 @@ exports.getAIInsight = (0, https_1.onCall)({ region: "us-central1", secrets: ["O
     // stepfun/step-3.5-flash is a reasoning model: it writes its chain-of-thought
     // into `reasoning` and the final answer into `content`. Fall back to `reasoning`
     // in case the model embeds the JSON there when content is null/empty.
-    const raw = (message?.content ?? "").trim() ||
-        (message?.reasoning ?? "").trim();
+    const raw = (message?.content ?? "").trim() || (message?.reasoning ?? "").trim();
     console.log("content:", message?.content ? "present" : "null");
     console.log("reasoning length:", message?.reasoning?.length ?? 0);
     console.log("raw (first 200):", raw.slice(0, 200));
@@ -160,7 +161,8 @@ exports.deleteAccountByEmail = (0, https_1.onCall)({ region: "us-central1" }, as
         let userDocId = null;
         for (const userDoc of usersSnapshot.docs) {
             const userData = userDoc.data();
-            if (userData.email && userData.email.toLowerCase() === normalizedEmail) {
+            if (userData.email &&
+                userData.email.toLowerCase() === normalizedEmail) {
                 userDocId = userDoc.id;
                 break;
             }
@@ -169,9 +171,17 @@ exports.deleteAccountByEmail = (0, https_1.onCall)({ region: "us-central1" }, as
             throw new https_1.HttpsError("not-found", "No account found with this email address.");
         }
         // Delete all subcollections
-        const logsSnapshot = await db.collection("users").doc(userDocId).collection("logs").get();
+        const logsSnapshot = await db
+            .collection("users")
+            .doc(userDocId)
+            .collection("logs")
+            .get();
         await Promise.all(logsSnapshot.docs.map((d) => d.ref.delete()));
-        const remindersSnapshot = await db.collection("users").doc(userDocId).collection("reminders").get();
+        const remindersSnapshot = await db
+            .collection("users")
+            .doc(userDocId)
+            .collection("reminders")
+            .get();
         await Promise.all(remindersSnapshot.docs.map((d) => d.ref.delete()));
         // Delete user document
         await db.collection("users").doc(userDocId).delete();
@@ -240,6 +250,15 @@ exports.revenuecatWebhook = (0, https_1.onRequest)({ region: "us-central1", secr
     const db = (0, firestore_1.getFirestore)();
     const userRef = db.collection("users").doc(uid);
     console.log(`[RC Webhook] event=${event.type} uid=${uid} product=${event.product_id ?? "n/a"}`);
+    // RC does not guarantee delivery order and retries can duplicate events,
+    // so every state change is guarded by latest-expiry-wins inside a
+    // transaction: an event carrying an older expiration than what's stored
+    // is stale and must not overwrite newer state. Writes use set+merge so a
+    // not-yet-created user doc is created instead of throwing NOT_FOUND.
+    const storedExpiryMs = (snap) => {
+        const ts = snap.get("premiumExpiry");
+        return ts?.toMillis?.() ?? 0;
+    };
     try {
         switch (event.type) {
             case "INITIAL_PURCHASE":
@@ -247,34 +266,51 @@ exports.revenuecatWebhook = (0, https_1.onRequest)({ region: "us-central1", secr
             case "PRODUCT_CHANGE": {
                 const plan = planFromProductId(event.product_id);
                 const expiryMs = event.expiration_at_ms ?? null;
-                await userRef.update({
-                    isPremium: true,
-                    premiumPlan: plan,
-                    premiumExpiry: expiryMs ? firestore_1.Timestamp.fromMillis(expiryMs) : null,
+                const applied = await db.runTransaction(async (tx) => {
+                    const snap = await tx.get(userRef);
+                    if (expiryMs && expiryMs < storedExpiryMs(snap))
+                        return false;
+                    tx.set(userRef, {
+                        isPremium: true,
+                        premiumPlan: plan,
+                        premiumExpiry: expiryMs ? firestore_1.Timestamp.fromMillis(expiryMs) : null,
+                        // Clear flags from a previous billing cycle.
+                        premiumBillingIssue: false,
+                        premiumCancelledAt: null,
+                    }, { merge: true });
+                    return true;
                 });
-                console.log(`[RC Webhook] ✓ Premium activated — uid=${uid} plan=${plan}`);
+                console.log(applied
+                    ? `[RC Webhook] ✓ Premium activated — uid=${uid} plan=${plan}`
+                    : `[RC Webhook] ⤳ Stale ${event.type} ignored — uid=${uid}`);
                 break;
             }
             case "CANCELLATION":
                 // Cancelled but not yet expired — keep premium until expiry date.
                 // RC will send EXPIRATION when access actually ends.
-                await userRef.update({
-                    premiumCancelledAt: firestore_1.Timestamp.now(),
-                });
+                await userRef.set({ premiumCancelledAt: firestore_1.Timestamp.now() }, { merge: true });
                 console.log(`[RC Webhook] ✓ Cancellation recorded — uid=${uid} (still active until expiry)`);
                 break;
-            case "EXPIRATION":
-                await userRef.update({
-                    isPremium: false,
-                    premiumPlan: null,
-                    premiumExpiry: null,
+            case "EXPIRATION": {
+                const expiryMs = event.expiration_at_ms ?? null;
+                const applied = await db.runTransaction(async (tx) => {
+                    const snap = await tx.get(userRef);
+                    // A stale EXPIRATION for a previous period must not flip a
+                    // renewed subscription back to free.
+                    if (expiryMs && expiryMs < storedExpiryMs(snap))
+                        return false;
+                    tx.set(userRef, { isPremium: false, premiumPlan: null, premiumExpiry: null }, { merge: true });
+                    return true;
                 });
-                console.log(`[RC Webhook] ✓ Premium expired — uid=${uid}`);
+                console.log(applied
+                    ? `[RC Webhook] ✓ Premium expired — uid=${uid}`
+                    : `[RC Webhook] ⤳ Stale EXPIRATION ignored — uid=${uid}`);
                 break;
+            }
             case "BILLING_ISSUES_DETECTED":
                 // Keep premium active — RC will retry billing.
                 // Optionally surface this to the user via a flag.
-                await userRef.update({ premiumBillingIssue: true });
+                await userRef.set({ premiumBillingIssue: true }, { merge: true });
                 console.log(`[RC Webhook] ✓ Billing issue recorded — uid=${uid}`);
                 break;
             default:
@@ -285,15 +321,8 @@ exports.revenuecatWebhook = (0, https_1.onRequest)({ region: "us-central1", secr
     }
     catch (error) {
         console.error("[RC Webhook] Firestore update failed:", error);
-        // Return 200 anyway so RC doesn't keep retrying for a bad uid.
-        // Genuine server errors should return 500 so RC retries.
-        if (error?.code === 5 /* NOT_FOUND */) {
-            console.warn(`[RC Webhook] User doc not found for uid=${uid} — skipping.`);
-            res.status(200).send("OK");
-        }
-        else {
-            res.status(500).send("Internal Server Error");
-        }
+        // Genuine server errors return 500 so RC retries the delivery.
+        res.status(500).send("Internal Server Error");
     }
 });
 //# sourceMappingURL=index.js.map

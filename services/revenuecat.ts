@@ -156,11 +156,4 @@ export function extractSubscriptionStatus(customerInfo: CustomerInfo): {
   return { isPremium: true, plan, expiryDate };
 }
 
-/**
- * Fetch live entitlement status directly from RevenueCat.
- * Use this on app foreground / after login to keep Redux in sync.
- */
-export async function getCustomerInfo(): Promise<CustomerInfo> {
-  return Purchases.getCustomerInfo();
-}
 
