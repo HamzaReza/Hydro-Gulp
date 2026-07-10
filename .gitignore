@@ -45,3 +45,4 @@ app-example
 /android
 
 firebase-debug.log
+play-service-account.json

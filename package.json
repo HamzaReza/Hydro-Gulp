@@ -16,6 +16,7 @@
     "archive": "eas build --platform ios --profile production",
     "submit:ios": "eas submit --platform ios --profile production",
     "submit:android": "eas submit --platform android --profile internal",
+    "submit:android:prod": "eas submit --platform android --profile production",
     "apk": "eas build --platform android --profile preview",
     "aab": "eas build --platform android --profile production",
     "pre:ios": "node scripts/update.js preview ios",
