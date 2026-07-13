@@ -90,44 +90,29 @@
         transform-origin: 0 0;
       }
 
-      /* Phone: device + prominent side caption (alternates L/R) inside 1024² */
+      /* Phone: big headline on top, device below — readable at thumbnail size */
       .canvas-phone {
         display: flex;
-        flex-direction: row;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 36px 52px;
-        padding: 28px 40px;
-      }
-
-      /* Body: instructions = child 1. Phone blocks: 2,4,6,8 = caption left; 3,5,7 = caption right */
-      .canvas-phone:nth-child(even) {
-        flex-direction: row;
-      }
-
-      .canvas-phone:nth-child(odd) {
-        flex-direction: row-reverse;
+        gap: 40px;
+        padding: 44px 40px;
       }
 
       .phone-caption {
-        flex: 0 1 400px;
+        flex: none;
         margin: 0;
-        font-size: 28px;
+        max-width: 940px;
+        font-size: 68px;
         font-weight: 600;
-        line-height: 1.28;
-        letter-spacing: -0.02em;
+        line-height: 1.08;
+        letter-spacing: -0.025em;
+        text-align: center;
         color: #f2f8ff;
         text-shadow:
           0 1px 0 rgba(0, 0, 0, 0.35),
           0 4px 24px rgba(0, 0, 0, 0.35);
-      }
-
-      .canvas-phone:nth-child(even) .phone-caption {
-        text-align: left;
-      }
-
-      .canvas-phone:nth-child(odd) .phone-caption {
-        text-align: right;
       }
 
       /* Phone frame — portrait */
@@ -242,9 +227,7 @@
     </div>
 
     <div class="canvas-phone">
-      <p class="phone-caption">
-        Log water and see your daily progress, quick-add buttons, and today’s drink list.
-      </p>
+      <p class="phone-caption">Track Every Sip</p>
       <div class="device-phone">
         <div class="phone-inner">
           <img src="screenshots/01-today.png" alt="Today" />
@@ -253,9 +236,7 @@
     </div>
 
     <div class="canvas-phone">
-      <p class="phone-caption">
-        Review weekly intake, streaks, and your monthly hydration calendar at a glance.
-      </p>
+      <p class="phone-caption">Build Streaks</p>
       <div class="device-phone">
         <div class="phone-inner">
           <img src="screenshots/02-history.png" alt="History" />
@@ -264,9 +245,7 @@
     </div>
 
     <div class="canvas-phone">
-      <p class="phone-caption">
-        Explore averages, trends, drink breakdown, and how your hydration changes over time.
-      </p>
+      <p class="phone-caption">See Your Trends</p>
       <div class="device-phone">
         <div class="phone-inner">
           <img src="screenshots/03-analytics.png" alt="Analytics" />
@@ -275,9 +254,7 @@
     </div>
 
     <div class="canvas-phone">
-      <p class="phone-caption">
-        Get personalized motivation and tips grounded in your real intake and goals.
-      </p>
+      <p class="phone-caption">AI Hydration Coach</p>
       <div class="device-phone">
         <div class="phone-inner">
           <img src="screenshots/04-ai-insights.png" alt="AI Insights" />
@@ -286,9 +263,7 @@
     </div>
 
     <div class="canvas-phone">
-      <p class="phone-caption">
-        Sign in with Google and start your hydration journey in a few quick steps.
-      </p>
+      <p class="phone-caption">Start in Seconds</p>
       <div class="device-phone">
         <div class="phone-inner">
           <img src="screenshots/05-onboarding.png" alt="Onboarding" />
@@ -297,9 +272,7 @@
     </div>
 
     <div class="canvas-phone">
-      <p class="phone-caption">
-        Turn on notifications and schedule reminders so you never fall behind on water.
-      </p>
+      <p class="phone-caption">Smart Reminders</p>
       <div class="device-phone">
         <div class="phone-inner">
           <img src="screenshots/06-reminders.png" alt="Reminders" />
@@ -308,9 +281,7 @@
     </div>
 
     <div class="canvas-phone">
-      <p class="phone-caption">
-        Set your daily goal, tweak preferences, and manage your Pro subscription.
-      </p>
+      <p class="phone-caption">Your Goal, Your Way</p>
       <div class="device-phone">
         <div class="phone-inner">
           <img src="screenshots/07-profile.png" alt="Profile" />
