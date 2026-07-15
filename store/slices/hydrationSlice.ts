@@ -11,6 +11,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../firebase';
+import { DEMO_MODE } from '../../constants/demoMode';
 import { logoutThunk, deleteAccountThunk } from './authSlice';
 import { getTodayString, getLast7Days, getLast31Days } from '../../utils/dateUtils';
 import { getDrinkById } from '../../constants/drinks';
@@ -49,6 +50,8 @@ export const fetchLogsForRangeThunk = createAsyncThunk(
     { uid, startDate, endDate }: { uid: string; startDate: string; endDate: string },
     { rejectWithValue }
   ) => {
+    // Demo mode: logs are seeded locally — never touch Firestore
+    if (DEMO_MODE) return {};
     try {
       const logsRef = collection(db, 'users', uid, 'logs');
       const q = query(
@@ -92,6 +95,15 @@ export const addLogThunk = createAsyncThunk(
       const drinkType = getDrinkById(logData.type);
       const hydrationValue = Math.round(logData.amount * drinkType.hydrationMultiplier);
 
+      // Demo mode: keep the log local — never touch Firestore
+      if (DEMO_MODE) {
+        return {
+          ...logData,
+          id: `demo-local-${logData.timestamp}`,
+          hydrationValue,
+        };
+      }
+
       const docRef = await addDoc(collection(db, 'users', uid, 'logs'), {
         amount: logData.amount,
         unit: logData.unit,
@@ -119,6 +131,7 @@ export const deleteLogThunk = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
+      if (DEMO_MODE) return { logId, date };
       await deleteDoc(doc(db, 'users', uid, 'logs', logId));
       return { logId, date };
     } catch (error: any) {
@@ -136,6 +149,9 @@ const hydrationSlice = createSlice({
     },
     setUnit: (state, action: PayloadAction<'ml' | 'oz'>) => {
       state.unit = action.payload;
+    },
+    seedLogs: (state, action: PayloadAction<Record<string, HydrationLog[]>>) => {
+      state.logs = action.payload;
     },
     optimisticAddLog: (state, action: PayloadAction<HydrationLog>) => {
       const log = action.payload;
@@ -228,6 +244,7 @@ const hydrationSlice = createSlice({
 export const {
   setGoal,
   setUnit,
+  seedLogs,
   optimisticAddLog,
   optimisticDeleteLog,
   rollbackAddLog,

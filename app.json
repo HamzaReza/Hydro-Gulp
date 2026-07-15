@@ -83,7 +83,9 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "expo-sharing",
+      "react-native-android-widget"
     ],
     "experiments": {
       "typedRoutes": true

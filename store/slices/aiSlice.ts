@@ -65,6 +65,14 @@ const aiSlice = createSlice({
     clearAIError: (state) => {
       state.error = null;
     },
+    // Demo mode: inject a canned insight so the AI tab renders without a network call
+    seedInsight: (state, action: PayloadAction<AIInsight>) => {
+      state.quote = action.payload.quote;
+      state.suggestion = action.payload.suggestion;
+      state.fetchedDate = getTodayString();
+      state.loading = false;
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -85,5 +93,5 @@ const aiSlice = createSlice({
   },
 });
 
-export const { clearAIError } = aiSlice.actions;
+export const { clearAIError, seedInsight } = aiSlice.actions;
 export default aiSlice.reducer;

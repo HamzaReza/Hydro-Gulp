@@ -22,6 +22,8 @@ import SpaceGroteskBold from "../assets/fonts/SpaceGrotesk-Bold.ttf";
 import SpaceGroteskMedium from "../assets/fonts/SpaceGrotesk-Medium.ttf";
 import SpaceGroteskRegular from "../assets/fonts/SpaceGrotesk-Regular.ttf";
 import SpaceGroteskSemiBold from "../assets/fonts/SpaceGrotesk-SemiBold.ttf";
+import { seedDemoState } from "../constants/demoData";
+import { DEMO_MODE } from "../constants/demoMode";
 import { Colors, DarkTheme as AppDarkTheme, LightTheme } from "../constants/theme";
 import { auth, db } from "../firebase";
 import { AppDispatch, persistor, RootState, store } from "../store";
@@ -37,6 +39,12 @@ import {
 } from "../services/revenuecat";
 
 SplashScreen.preventAutoHideAsync();
+
+// Keep dev-only LogBox toasts out of demo-mode screenshots
+if (DEMO_MODE) {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  require("react-native").LogBox.ignoreAllLogs(true);
+}
 
 // Configure RevenueCat before any user interaction
 configureRevenueCat();
@@ -54,6 +62,11 @@ function AuthListener({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
 
   useEffect(() => {
+    // Demo mode: seed local mock state and never attach Firebase listeners.
+    if (DEMO_MODE) {
+      seedDemoState(dispatch);
+      return;
+    }
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         dispatch(
@@ -107,7 +120,7 @@ function AuthListener({ children }: { children: React.ReactNode }) {
   // re-sync on foreground needed.
   const uid = useSelector((state: RootState) => state.auth.uid);
   useEffect(() => {
-    if (!uid) return;
+    if (DEMO_MODE || !uid) return;
     const unsub = onSnapshot(doc(db, "users", uid), (snap) => {
       const data = snap.data();
       if (!data) return;

@@ -31,9 +31,9 @@ import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import {
   DRINK_TYPES,
-  QUICK_ADD_DRINKS,
   MaterialIconName,
   QUICK_ADD_AMOUNTS,
+  QUICK_ADD_DRINKS,
 } from "../../constants/drinks";
 import {
   BorderRadius,
@@ -285,7 +285,7 @@ function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={[styles.greeting, { color: theme.text }]}>
               {getGreeting(name)}
             </Text>
@@ -495,7 +495,12 @@ function HomeScreen() {
                         +{formatAmount(log.amount, unit)}
                       </Text>
                       {log.hydrationValue !== log.amount && (
-                        <Text style={[styles.logEffective, { color: theme.textSecondary }]}>
+                        <Text
+                          style={[
+                            styles.logEffective,
+                            { color: theme.textSecondary },
+                          ]}
+                        >
                           {formatAmount(log.hydrationValue, unit)} effective
                         </Text>
                       )}
@@ -656,6 +661,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 24,
+  },
+  headerLeft: {
+    flex: 1,
+    paddingRight: 12,
   },
   greeting: {
     fontSize: FontSize.xl,
