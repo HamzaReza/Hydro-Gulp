@@ -1,0 +1,15 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.hydrogulp.bridge'
+version = '1.0.0'
+
+android {
+  namespace "com.hydrogulp.bridge"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}

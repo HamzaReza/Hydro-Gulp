@@ -1,7 +1,7 @@
 {
   "name": "hydro-gulp",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "./index.js",
   "scripts": {
     "start": "expo start",
     "start:clear": "expo start -c",
@@ -68,6 +68,8 @@
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@types/react": "~19.2.10",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~55.0.1",
     "typescript": "^5.3.0"
   }
 }

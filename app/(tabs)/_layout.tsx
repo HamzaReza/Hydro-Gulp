@@ -11,6 +11,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAutoFreeze } from "../../hooks/useStreakFreeze";
 import { useTheme } from "../../hooks/useTheme";
 
 const TAB_ICONS: Record<
@@ -167,6 +168,9 @@ function CustomTabBar({ state, navigation }: any) {
 // ─── Layout ──────────────────────────────────────────────────────────────────
 
 export default function TabsLayout() {
+  // Silent streak-freeze auto-check for Pro users (runs once per foreground session)
+  useAutoFreeze();
+
   return (
     <Tabs
       screenOptions={{ headerShown: false }}

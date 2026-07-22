@@ -164,7 +164,14 @@ export const DRINK_TYPES: DrinkType[] = [
 
 export const QUICK_ADD_DRINKS = DRINK_TYPES.filter((d) => d.quickAdd);
 
-export const QUICK_ADD_AMOUNTS = [100, 150, 250, 350, 500, 750, 1000];
+export const DEFAULT_QUICK_ADD_AMOUNTS = [100, 150, 250, 350, 500, 750, 1000];
+
+/** @deprecated Use DEFAULT_QUICK_ADD_AMOUNTS (or the user's profile.quickAddPresets) instead. */
+export const QUICK_ADD_AMOUNTS = DEFAULT_QUICK_ADD_AMOUNTS;
+
+export const PRESET_MIN = 1;
+export const PRESET_MAX = 5000;
+export const PRESET_COUNT_MAX = 7;
 
 export const getDrinkById = (id: string): DrinkType => {
   return DRINK_TYPES.find((d) => d.id === id) || DRINK_TYPES[0];

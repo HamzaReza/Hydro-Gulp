@@ -22,6 +22,7 @@ import SpaceGroteskBold from "../assets/fonts/SpaceGrotesk-Bold.ttf";
 import SpaceGroteskMedium from "../assets/fonts/SpaceGrotesk-Medium.ttf";
 import SpaceGroteskRegular from "../assets/fonts/SpaceGrotesk-Regular.ttf";
 import SpaceGroteskSemiBold from "../assets/fonts/SpaceGrotesk-SemiBold.ttf";
+import { NotificationGate } from "../components/NotificationGate";
 import { seedDemoState } from "../constants/demoData";
 import { DEMO_MODE } from "../constants/demoMode";
 import { Colors, DarkTheme as AppDarkTheme, LightTheme } from "../constants/theme";
@@ -227,6 +228,7 @@ function AppContent() {
   return (
     <ThemeProvider value={navigationTheme}>
       <AuthListener>
+        <NotificationGate />
         <StatusBar style={theme === "dark" ? "light" : "dark"} />
         <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
           <Stack.Screen name="(onboarding)" />

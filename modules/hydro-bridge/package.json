@@ -1,0 +1,7 @@
+{
+  "name": "hydro-bridge",
+  "version": "1.0.0",
+  "description": "Local Expo module: Quick Settings tile + native pending-log queue for Hydro: Gulp",
+  "main": "index.ts",
+  "private": true
+}

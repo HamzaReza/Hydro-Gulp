@@ -25,7 +25,7 @@ sed 's|</body>|<script>\
   document.body.prepend(keep);\
 </script></body>|' "$DIR/index.html" > "$HARNESS"
 
-NAMES=(01-today 02-history 03-analytics 04-ai-insights 06-reminders 07-profile)
+NAMES=(01-today 02-history 03-analytics 04-ai-insights 06-reminders 07-profile 08-presets 09-freeze 10-companion 11-reminder 12-tile 13-widget)
 
 shoot() { # panelIndex outFile size
   "$CHROME" --headless=new --disable-gpu --hide-scrollbars \
@@ -36,8 +36,8 @@ shoot() { # panelIndex outFile size
 
 for i in "${!NAMES[@]}"; do
   shoot "$i"           "$OUT/phone-${NAMES[$i]}.png"    1024,1024
-  shoot "$((i + 6))"   "$OUT/tablet7-${NAMES[$i]}.png"  1024,1024
-  shoot "$((i + 12))"  "$OUT/tablet10-${NAMES[$i]}.png" 2048,2048
+  shoot "$((i + 12))"  "$OUT/tablet7-${NAMES[$i]}.png"  1024,1024
+  shoot "$((i + 24))"  "$OUT/tablet10-${NAMES[$i]}.png" 2048,2048
   echo "exported ${NAMES[$i]}"
 done
 

@@ -1,84 +1,8 @@
-import * as Notifications from 'expo-notifications';
-import { SchedulableTriggerInputTypes } from 'expo-notifications';
-import { Platform } from 'react-native';
-
-import { Brand } from '../constants/branding';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
-export const requestNotificationPermissions = async (): Promise<boolean> => {
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-    });
-  }
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  return finalStatus === 'granted';
-};
-
-export const scheduleReminder = async (
-  id: string,
-  hour: number,
-  minute: number,
-  label: string
-): Promise<string | null> => {
-  try {
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: Brand.reminderTitle,
-        body: label || "Time to hydrate! Don't forget your water.",
-        data: { reminderId: id },
-      },
-      trigger: {
-        type: SchedulableTriggerInputTypes.DAILY,
-        hour,
-        minute,
-      },
-    });
-    return notificationId;
-  } catch (error) {
-    console.error('Failed to schedule notification:', error);
-    return null;
-  }
-};
-
-export const cancelReminder = async (notificationId: string): Promise<void> => {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(notificationId);
-  } catch (error) {
-    console.error('Failed to cancel notification:', error);
-  }
-};
-
-export const cancelAllReminders = async (): Promise<void> => {
-  try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-  } catch (error) {
-    console.error('Failed to cancel all notifications:', error);
-  }
-};
-
-export const getScheduledNotifications = async () => {
-  return Notifications.getAllScheduledNotificationsAsync();
-};
-
+/**
+ * Pure time helpers for reminders. The notification layer itself lives in
+ * services/notifications.ts (notifee) — this module must stay free of native
+ * imports so background/headless contexts can use it safely.
+ */
 export const parseTimeString = (timeString: string): { hour: number; minute: number } => {
   const [hourStr, minuteStr] = timeString.split(':');
   return {

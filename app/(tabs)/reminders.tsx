@@ -19,6 +19,7 @@ import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
+import { DEFAULT_QUICK_ADD_AMOUNTS } from "../../constants/drinks";
 import {
   BorderRadius,
   Colors,
@@ -37,11 +38,17 @@ import {
   updateReminder,
 } from "../../store/slices/settingsSlice";
 import {
-  cancelReminder,
+  cancelAllReminderTriggers,
+  cancelReminderTrigger,
+  exactAlarmsAllowed,
+  openExactAlarmSettings,
+  requestNotificationPermissions,
+  rescheduleAllReminders,
+  scheduleReminder,
+} from "../../services/notifications";
+import {
   generateSmartReminderTimes,
   parseTimeString,
-  requestNotificationPermissions,
-  scheduleReminder,
 } from "../../utils/notificationUtils";
 
 /** Firestore rejects `undefined`; optional fields must be omitted instead. */
@@ -70,7 +77,13 @@ function RemindersScreen() {
   const [reminderTime, setReminderTime] = useState("08:00");
   const [reminderLabel, setReminderLabel] = useState("Time to hydrate!");
 
-  const canAddReminder = isPremium || reminders.length < 1;
+  const quickAddPresets = useSelector(
+    (state: RootState) =>
+      state.profile.quickAddPresets ?? DEFAULT_QUICK_ADD_AMOUNTS,
+  );
+
+  const FREE_REMINDER_LIMIT = 2;
+  const canAddReminder = isPremium || reminders.length < FREE_REMINDER_LIMIT;
 
   const handleToggleNotifications = async (enabled: boolean) => {
     if (enabled) {
@@ -83,8 +96,22 @@ function RemindersScreen() {
         );
         return;
       }
+      // Android 12+: exact-alarm permission makes reminders fire on time.
+      // Without it we fall back to inexact scheduling — offer the upgrade.
+      if (!(await exactAlarmsAllowed())) {
+        Alert.alert(
+          "Precise Reminders",
+          "Allow 'Alarms & reminders' so your hydration reminders arrive exactly on time. Without it, reminders may be delayed by the system.",
+          [
+            { text: "Not now", style: "cancel" },
+            { text: "Allow", onPress: () => openExactAlarmSettings() },
+          ],
+        );
+      }
     }
     dispatch(setNotificationsEnabled(enabled));
+    // Keep the OS schedule in lockstep with the master switch.
+    await rescheduleAllReminders(reminders, quickAddPresets, enabled);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -96,10 +123,9 @@ function RemindersScreen() {
     dispatch(toggleReminder(reminderId));
 
     if (!reminder.enabled && notificationsEnabled) {
-      const { hour, minute } = parseTimeString(reminder.time);
-      await scheduleReminder(reminderId, hour, minute, reminder.label);
-    } else if (reminder.notificationId) {
-      await cancelReminder(reminder.notificationId);
+      await scheduleReminder(reminder, quickAddPresets);
+    } else {
+      await cancelReminderTrigger(reminderId);
     }
 
     if (uid) {
@@ -140,14 +166,7 @@ function RemindersScreen() {
       return;
     }
 
-    const { hour, minute } = parseTimeString(reminderTime);
     const id = editingReminder || `reminder-${Date.now()}`;
-
-    let notificationId: string | undefined;
-    if (notificationsEnabled) {
-      notificationId =
-        (await scheduleReminder(id, hour, minute, reminderLabel)) || undefined;
-    }
 
     const reminder = {
       id,
@@ -155,8 +174,12 @@ function RemindersScreen() {
       enabled: true,
       label: reminderLabel,
       smartReminder: false,
-      notificationId,
     };
+
+    // Deterministic trigger id — editing replaces the OS schedule in place.
+    if (notificationsEnabled) {
+      await scheduleReminder(reminder, quickAddPresets);
+    }
 
     if (editingReminder) {
       dispatch(updateReminder(reminder));
@@ -186,9 +209,7 @@ function RemindersScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
-          if (reminder?.notificationId) {
-            await cancelReminder(reminder.notificationId);
-          }
+          await cancelReminderTrigger(reminderId);
           dispatch(deleteReminder(reminderId));
           if (uid) {
             await deleteDoc(
@@ -232,18 +253,14 @@ function RemindersScreen() {
     }
 
     for (const r of newReminders) {
-      const { hour, minute } = parseTimeString(r.time);
-      let notificationId: string | undefined;
       if (notificationsEnabled) {
-        notificationId =
-          (await scheduleReminder(r.id, hour, minute, r.label)) || undefined;
+        await scheduleReminder(r, quickAddPresets);
       }
-      const saved = { ...r, notificationId };
-      dispatch(addReminder(saved));
+      dispatch(addReminder(r));
       if (uid) {
         await setDoc(
           doc(db, "users", uid, "reminders", r.id),
-          stripUndefined(saved),
+          stripUndefined(r),
         ).catch(() => {});
       }
     }
@@ -369,7 +386,7 @@ function RemindersScreen() {
           )}
         </View>
 
-        {!isPremium && reminders.length >= 1 && (
+        {!isPremium && reminders.length >= FREE_REMINDER_LIMIT && (
           <GlassCard style={styles.limitCard} padding={12}>
             <View style={styles.limitRow}>
               <MaterialIcons
@@ -378,8 +395,8 @@ function RemindersScreen() {
                 color={Colors.warning}
               />
               <Text style={[styles.limitText, { color: Colors.warning }]}>
-                Free plan: 1 reminder max. Upgrade to Pro for unlimited
-                reminders.
+                Free plan: {FREE_REMINDER_LIMIT} reminders max. Upgrade to Pro
+                for unlimited reminders.
               </Text>
             </View>
           </GlassCard>

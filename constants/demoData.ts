@@ -1,4 +1,5 @@
 import type { AppDispatch } from "../store";
+import { seedInsight } from "../store/slices/aiSlice";
 import { setHasSeenOnboarding, setUser } from "../store/slices/authSlice";
 import {
   HydrationLog,
@@ -6,7 +7,6 @@ import {
   setGoal,
   setUnit,
 } from "../store/slices/hydrationSlice";
-import { seedInsight } from "../store/slices/aiSlice";
 import { setProfile } from "../store/slices/profileSlice";
 import {
   Reminder,
@@ -14,11 +14,15 @@ import {
   setReminders,
 } from "../store/slices/settingsSlice";
 import { setSubscription } from "../store/slices/subscriptionSlice";
+import { formatDate, getDateDaysAgo, getTodayString } from "../utils/dateUtils";
+import { getMonthKey } from "../utils/streakUtils";
 import { getDrinkById } from "./drinks";
-import { formatDate } from "../utils/dateUtils";
 
 const DEMO_GOAL = 2500;
 const DAYS_OF_HISTORY = 240;
+// A below-goal day inside the current streak, saved by a streak freeze —
+// shows the frozen (ice-blue) heatmap cell in store screenshots.
+const FROZEN_DAYS_AGO = 10;
 
 /** Deterministic PRNG so every build produces identical screenshots. */
 function mulberry32(seed: number) {
@@ -59,8 +63,8 @@ function makeLog(
   index: number,
 ): HydrationLog {
   const drink = getDrinkById(type);
-  const timestamp = new Date(`${date}T00:00:00`).getTime() +
-    (hour * 60 + minute) * 60 * 1000;
+  const timestamp =
+    new Date(`${date}T00:00:00`).getTime() + (hour * 60 + minute) * 60 * 1000;
   return {
     id: `demo-${date}-${index}`,
     amount,
@@ -73,7 +77,11 @@ function makeLog(
 }
 
 /** Generate one day's logs aiming at `target` ml of hydration value. */
-function buildDay(date: string, target: number, rand: () => number): HydrationLog[] {
+function buildDay(
+  date: string,
+  target: number,
+  rand: () => number,
+): HydrationLog[] {
   const logs: HydrationLog[] = [];
   let total = 0;
   let index = 0;
@@ -144,6 +152,9 @@ export function buildDemoLogs(): Record<string, HydrationLog[]> {
     if (daysAgo === 17) {
       // Deliberate miss so the current streak is exactly 16 days
       target = DEMO_GOAL * 0.55;
+    } else if (daysAgo === FROZEN_DAYS_AGO) {
+      // Below-goal day protected by a streak freeze (seeded in seedDemoState)
+      target = DEMO_GOAL * 0.5;
     } else if (inCurrentStreak || inBestRun) {
       target = DEMO_GOAL * (1.0 + rand() * 0.18);
     } else {
@@ -168,19 +179,55 @@ export function buildDemoLogs(): Record<string, HydrationLog[]> {
     makeLog(today, 8, 55, "coffee", 250, 1),
     makeLog(today, 10, 20, "water", 500, 2),
     makeLog(today, 11, 5, "green_tea", 300, 3),
-    makeLog(today, 11, 40, "water", 350, 4),
-    makeLog(today, 13, 25, "sparkling", 330, 5),
-    makeLog(today, 16, 50, "water", 250, 6),
+    makeLog(today, 13, 25, "sparkling", 330, 4),
   ];
 
   return logs;
 }
 
+/** A reminder ~2 min after launch so screenshots can capture a live
+ *  notification with its quick-log action buttons. Demo builds only. */
+function nearFutureTime(): string {
+  const d = new Date(Date.now() + 2 * 60 * 1000);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 const DEMO_REMINDERS: Reminder[] = [
-  { id: "demo-r1", time: "08:00", enabled: true, label: "Morning kickstart 🌅", smartReminder: false },
-  { id: "demo-r2", time: "12:30", enabled: true, label: "Lunchtime hydration", smartReminder: false },
-  { id: "demo-r3", time: "16:00", enabled: true, label: "Afternoon boost ⚡", smartReminder: false },
-  { id: "demo-r4", time: "21:00", enabled: false, label: "Wind down 🌙", smartReminder: false },
+  {
+    id: "demo-r0",
+    time: nearFutureTime(),
+    enabled: true,
+    label: "Sip break! 💧",
+    smartReminder: false,
+  },
+  {
+    id: "demo-r1",
+    time: "08:00",
+    enabled: true,
+    label: "Morning kickstart 🌅",
+    smartReminder: false,
+  },
+  {
+    id: "demo-r2",
+    time: "12:30",
+    enabled: true,
+    label: "Lunchtime hydration",
+    smartReminder: false,
+  },
+  {
+    id: "demo-r3",
+    time: "16:00",
+    enabled: true,
+    label: "Afternoon boost ⚡",
+    smartReminder: false,
+  },
+  {
+    id: "demo-r4",
+    time: "21:00",
+    enabled: false,
+    label: "Wind down 🌙",
+    smartReminder: false,
+  },
 ];
 
 export function seedDemoState(dispatch: AppDispatch) {
@@ -200,6 +247,13 @@ export function seedDemoState(dispatch: AppDispatch) {
       unit: "ml",
       wakeTime: "07:00",
       sleepTime: "23:00",
+      quickAddPresets: [100, 150, 250, 350, 500, 750, 1000],
+      streakFreezes: {
+        monthKey: getMonthKey(),
+        used: 1,
+        frozenDates: [getDateDaysAgo(FROZEN_DAYS_AGO)],
+        lastCheckDate: getTodayString(),
+      },
     }),
   );
   dispatch(setGoal(DEMO_GOAL));

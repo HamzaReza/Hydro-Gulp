@@ -1,6 +1,8 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -9,10 +11,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 import { HeatmapCalendar } from "../../components/charts/HeatmapCalendar";
 import { WeeklyBarChart } from "../../components/charts/WeeklyBarChart";
 import { GlassCard } from "../../components/ui/GlassCard";
+import { GradientButton } from "../../components/ui/GradientButton";
 import { PremiumLock } from "../../components/ui/PremiumLock";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
@@ -26,6 +29,7 @@ import {
 import { useHydration } from "../../hooks/useHydration";
 import { usePremium } from "../../hooks/usePremium";
 import { useStreak } from "../../hooks/useStreak";
+import { useStreakFreeze } from "../../hooks/useStreakFreeze";
 import { useTheme } from "../../hooks/useTheme";
 import { AppDispatch, RootState } from "../../store";
 import { fetchLogsForRangeThunk } from "../../store/slices/hydrationSlice";
@@ -35,7 +39,9 @@ import {
   formatDisplayDate,
   getLast31Days,
   getLast7Days,
+  getTodayString,
 } from "../../utils/dateUtils";
+import { buildCsv, exportAndShareCsv } from "../../utils/exportCsv";
 
 type ViewMode = "week" | "month" | "year";
 
@@ -43,13 +49,18 @@ function HistoryScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
+  const store = useStore<RootState>();
   const { weeklyData, goal, unit } = useHydration();
   const { currentStreak, longestStreak, perfectDays } = useStreak();
   const { isPremium } = usePremium();
+  const { remaining, frozenDates, canRepairYesterday, repairYesterday } =
+    useStreakFreeze();
   const uid = useSelector((state: RootState) => state.auth.uid);
   const logs = useSelector((state: RootState) => state.hydration.logs);
 
   const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [exporting, setExporting] = useState(false);
+  const [repairing, setRepairing] = useState(false);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [heatmapSelectedDate, setHeatmapSelectedDate] = useState<string | null>(
     null,
@@ -105,6 +116,78 @@ function HistoryScreen() {
       else next.add(date);
       return next;
     });
+  };
+
+  const handleRepairStreak = async () => {
+    if (repairing) return;
+    setRepairing(true);
+    const ok = await repairYesterday();
+    setRepairing(false);
+    if (ok) {
+      Alert.alert(
+        "Streak repaired! ❄️",
+        "Yesterday is now frozen — your streak lives on.",
+      );
+    } else {
+      Alert.alert(
+        "Repair failed",
+        "Could not use a streak freeze. Please try again.",
+      );
+    }
+  };
+
+  /** All dates from Jan 1 of the current year through today. */
+  const getYearDatesToToday = (): string[] => {
+    const today = getTodayString();
+    const dates: string[] = [];
+    const d = new Date(new Date().getFullYear(), 0, 1);
+    let dateStr = formatDate(d);
+    while (dateStr <= today) {
+      dates.push(dateStr);
+      d.setDate(d.getDate() + 1);
+      dateStr = formatDate(d);
+    }
+    return dates;
+  };
+
+  const handleExportCsv = async () => {
+    if (!uid || exporting) return;
+    setExporting(true);
+    try {
+      const dates =
+        viewMode === "week"
+          ? getLast7Days()
+          : viewMode === "month"
+            ? getLast31Days()
+            : getYearDatesToToday();
+      await dispatch(
+        fetchLogsForRangeThunk({
+          uid,
+          startDate: dates[0],
+          endDate: dates[dates.length - 1],
+        }),
+      ).unwrap();
+      const freshLogs = store.getState().hydration.logs;
+      const hasRows = dates.some(
+        (d) => freshLogs[d] && freshLogs[d].length > 0,
+      );
+      if (!hasRows) {
+        Alert.alert("Export", "No logs in this period.");
+        return;
+      }
+      const csv = buildCsv(freshLogs, dates, unit);
+      await exportAndShareCsv(
+        csv,
+        `hydro-gulp-${viewMode}-${getTodayString()}.csv`,
+      );
+    } catch {
+      Alert.alert(
+        "Export failed",
+        "Could not export your data. Please try again.",
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   const getYearlyData = () => {
@@ -226,6 +309,20 @@ function HistoryScreen() {
           )}
         </GlassCard>
 
+        {/* Streak Repair — Pro */}
+        {isPremium && canRepairYesterday && (
+          <GlassCard style={styles.repairCard}>
+            <Text style={[styles.repairText, { color: theme.text }]}>
+              Your streak broke yesterday — save it with a freeze
+            </Text>
+            <GradientButton
+              label="Repair streak ❄️"
+              onPress={handleRepairStreak}
+              loading={repairing}
+            />
+          </GlassCard>
+        )}
+
         {/* Streak Stats */}
         <View style={styles.statsRow}>
           {[
@@ -247,6 +344,40 @@ function HistoryScreen() {
           ))}
         </View>
 
+        {/* Streak Freezes chip */}
+        <View style={styles.freezeChipRow}>
+          {isPremium ? (
+            <GlassCard style={styles.freezeChip} padding={10}>
+              <Text style={[styles.freezeChipText, { color: theme.text }]}>
+                ❄️ {remaining} {remaining === 1 ? "freeze" : "freezes"} left
+              </Text>
+            </GlassCard>
+          ) : (
+            <TouchableOpacity
+              onPress={() => router.push("/subscription")}
+              activeOpacity={0.75}
+            >
+              <GlassCard style={styles.freezeChip} padding={10}>
+                <View style={styles.freezeChipInner}>
+                  <MaterialIcons
+                    name="lock"
+                    size={14}
+                    color={theme.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.freezeChipText,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
+                    ❄️ Streak freezes (Pro)
+                  </Text>
+                </View>
+              </GlassCard>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* Heatmap Calendar — Premium */}
         {isPremium ? (
           <GlassCard style={styles.chartCard}>
@@ -256,6 +387,7 @@ function HistoryScreen() {
               data={calendarData}
               goal={goal}
               maxMonthsBack={2}
+              frozenDates={frozenDates}
               onMonthChange={(y, m) => setHeatmapYM({ y, m })}
               selectedDate={heatmapSelectedDate}
               onDatePress={(dateStr) => {
@@ -284,6 +416,7 @@ function HistoryScreen() {
                 data={calendarData}
                 goal={goal}
                 maxMonthsBack={2}
+                frozenDates={frozenDates}
                 onMonthChange={(y, m) => setHeatmapYM({ y, m })}
                 selectedDate={heatmapSelectedDate}
                 onDatePress={(dateStr) => {
@@ -446,11 +579,16 @@ function HistoryScreen() {
         {isPremium ? (
           <TouchableOpacity
             style={[styles.exportBtn, { borderColor: theme.accent }]}
-            onPress={() => Alert.alert("Export", "CSV export coming soon!")}
+            onPress={handleExportCsv}
+            disabled={exporting}
           >
-            <MaterialIcons name="download" size={18} color={theme.accent} />
+            {exporting ? (
+              <ActivityIndicator size="small" color={theme.accent} />
+            ) : (
+              <MaterialIcons name="download" size={18} color={theme.accent} />
+            )}
             <Text style={[styles.exportText, { color: theme.accent }]}>
-              Export CSV
+              {exporting ? "Exporting…" : "Export CSV"}
             </Text>
           </TouchableOpacity>
         ) : (
@@ -512,7 +650,34 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     gap: 10,
+    marginBottom: 10,
+  },
+  repairCard: {
+    borderRadius: 20,
     marginBottom: 16,
+  },
+  repairText: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.semibold,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  freezeChipRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  freezeChip: {
+    borderRadius: 16,
+  },
+  freezeChipInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  freezeChipText: {
+    fontSize: FontSize.sm,
+    fontFamily: FontFamily.semibold,
   },
   statCard: {
     flex: 1,

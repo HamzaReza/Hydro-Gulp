@@ -27,12 +27,13 @@ import { AppLogoMark } from "../../components/ui/AppLogoMark";
 import { BottomSheet } from "../../components/ui/BottomSheet";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
+import { PresetEditorSheet } from "../../components/ui/PresetEditorSheet";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import {
+  DEFAULT_QUICK_ADD_AMOUNTS,
   DRINK_TYPES,
   MaterialIconName,
-  QUICK_ADD_AMOUNTS,
   QUICK_ADD_DRINKS,
 } from "../../constants/drinks";
 import {
@@ -63,6 +64,7 @@ function QuickAddButton({
   amount,
   unit,
   onPress,
+  onLongPress,
   theme,
   drinkColor,
   drinkIcon,
@@ -70,6 +72,7 @@ function QuickAddButton({
   amount: number;
   unit: string;
   onPress: () => void;
+  onLongPress?: () => void;
   theme: any;
   drinkColor: string;
   drinkIcon: MaterialIconName;
@@ -91,7 +94,11 @@ function QuickAddButton({
     unit === "oz" ? `${Math.round(amount * 0.033814 * 10) / 10}` : `${amount}`;
 
   return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={1}>
+    <TouchableOpacity
+      onPress={handlePress}
+      onLongPress={onLongPress}
+      activeOpacity={1}
+    >
       <Animated.View style={animStyle}>
         <LinearGradient
           colors={[drinkColor + "38", drinkColor + "10"]}
@@ -183,8 +190,13 @@ function HomeScreen() {
   const uid = useSelector((state: RootState) => state.auth.uid);
   const name =
     useSelector((state: RootState) => state.profile.name) || "Friend";
+  // Fallback covers state persisted before quickAddPresets existed
+  const quickAddPresets =
+    useSelector((state: RootState) => state.profile.quickAddPresets) ??
+    DEFAULT_QUICK_ADD_AMOUNTS;
 
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [presetSheetVisible, setPresetSheetVisible] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
   const [selectedDrink, setSelectedDrink] = useState("water");
   const [quickAddDrink, setQuickAddDrink] = useState("water");
@@ -419,17 +431,54 @@ function HomeScreen() {
                 style={styles.quickAddScroll}
                 contentContainerStyle={styles.quickAddRow}
               >
-                {QUICK_ADD_AMOUNTS.map((amount) => (
+                {quickAddPresets.map((amount) => (
                   <QuickAddButton
                     key={amount}
                     amount={amount}
                     unit={unit}
                     onPress={() => handleQuickAdd(amount)}
+                    onLongPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      setPresetSheetVisible(true);
+                    }}
                     theme={theme}
                     drinkColor={activeDrink.color}
                     drinkIcon={activeDrink.icon}
                   />
                 ))}
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setPresetSheetVisible(true);
+                  }}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit quick add presets"
+                >
+                  <View
+                    style={[
+                      styles.editPresetsBtn,
+                      {
+                        backgroundColor: theme.card,
+                        borderColor: theme.cardBorder,
+                      },
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="edit"
+                      size={16}
+                      color={theme.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.editPresetsLabel,
+                        { color: theme.textSecondary },
+                      ]}
+                    >
+                      Edit
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </ScrollView>
             </>
           );
@@ -644,6 +693,12 @@ function HomeScreen() {
         </View>
       </BottomSheet>
 
+      {/* Quick Add Preset Editor */}
+      <PresetEditorSheet
+        visible={presetSheetVisible}
+        onClose={() => setPresetSheetVisible(false)}
+      />
+
       <CelebrationOverlay
         visible={showCelebration}
         onDone={() => setShowCelebration(false)}
@@ -773,6 +828,23 @@ const styles = StyleSheet.create({
   quickAddUnit: {
     fontSize: FontSize.xs,
     fontFamily: FontFamily.regular,
+    letterSpacing: 0.2,
+  },
+  editPresetsBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 6,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    gap: 5,
+    width: 60,
+    alignSelf: "stretch",
+  },
+  editPresetsLabel: {
+    fontSize: FontSize.xs,
+    fontFamily: FontFamily.semibold,
     letterSpacing: 0.2,
   },
   logsHeader: {

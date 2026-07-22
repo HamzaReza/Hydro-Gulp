@@ -2,7 +2,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import React from "react";
 import { Text, TouchableOpacity, View, StyleSheet } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
-import { FontFamily, FontSize } from "../../constants/theme";
+import { Colors, FontFamily, FontSize } from "../../constants/theme";
 import { getDatesInMonth } from "../../utils/dateUtils";
 
 interface HeatmapCalendarProps {
@@ -15,6 +15,8 @@ interface HeatmapCalendarProps {
   /** When set, that day’s cell is outlined as selected */
   selectedDate?: string | null;
   onDatePress?: (dateStr: string) => void;
+  /** Days protected by a streak freeze — rendered ice-blue */
+  frozenDates?: string[];
 }
 
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -28,8 +30,11 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
   onMonthChange,
   selectedDate,
   onDatePress,
+  frozenDates,
 }) => {
   const theme = useTheme();
+  const frozenSet = new Set(frozenDates ?? []);
+  const frozenCellColor = Colors.lightBlue + '38';
   const dates = getDatesInMonth(year, month);
   const firstDate = new Date(year, month, 1);
   const startDayOfWeek = firstDate.getDay();
@@ -141,6 +146,7 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
             const intensity = getIntensity(dateStr);
             const dayNum = parseInt(dateStr.split('-')[2], 10);
             const isSelected = selectedDate === dateStr;
+            const isFrozen = frozenSet.has(dateStr);
             const CellWrapper = onDatePress ? TouchableOpacity : View;
             return (
               <CellWrapper
@@ -154,9 +160,15 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
                 style={[
                   styles.cell,
                   {
-                    backgroundColor: getColor(intensity),
-                    borderColor: isSelected ? theme.accent : theme.cardBorder,
-                    borderWidth: isSelected ? 2 : 1,
+                    backgroundColor: isFrozen
+                      ? frozenCellColor
+                      : getColor(intensity),
+                    borderColor: isSelected
+                      ? theme.accent
+                      : isFrozen
+                        ? Colors.lightBlue
+                        : theme.cardBorder,
+                    borderWidth: isSelected ? 2 : isFrozen ? 1.5 : 1,
                   },
                 ]}
               >
@@ -194,6 +206,24 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({
         <Text style={[styles.legendLabel, { color: theme.textSecondary }]}>
           More
         </Text>
+        {frozenDates && frozenDates.length > 0 && (
+          <>
+            <View
+              style={[
+                styles.legendCell,
+                {
+                  backgroundColor: frozenCellColor,
+                  borderColor: Colors.lightBlue,
+                  borderWidth: 1.5,
+                  marginLeft: 8,
+                },
+              ]}
+            />
+            <Text style={[styles.legendLabel, { color: theme.textSecondary }]}>
+              Frozen
+            </Text>
+          </>
+        )}
       </View>
     </View>
   );

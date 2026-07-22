@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- Quick Settings tile: logs the default preset without opening the app.
+         Merged into the app manifest by Gradle's manifest merger. -->
+    <service
+      android:name="com.hydrogulp.bridge.TileLogService"
+      android:exported="true"
+      android:label="@string/hydro_tile_label"
+      android:icon="@drawable/ic_tile_water"
+      android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.QS_TILE" />
+      </intent-filter>
+    </service>
+  </application>
+</manifest>

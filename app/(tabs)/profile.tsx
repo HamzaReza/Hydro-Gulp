@@ -13,6 +13,7 @@ import {
   ScrollView,
   Share,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -34,9 +35,14 @@ import {
 import { usePremium } from "../../hooks/usePremium";
 import { useTheme } from "../../hooks/useTheme";
 import { AppDispatch, RootState } from "../../store";
+import { cancelCompanion } from "../../services/companionNotification";
+import { requestNotificationPermissions } from "../../services/notifications";
 import { deleteAccountThunk, logoutThunk } from "../../store/slices/authSlice";
 import { updateProfileThunk } from "../../store/slices/profileSlice";
-import { setTheme } from "../../store/slices/settingsSlice";
+import {
+  setCompanionEnabled,
+  setTheme,
+} from "../../store/slices/settingsSlice";
 
 function Avatar({
   name,
@@ -143,11 +149,36 @@ function ProfileScreen() {
     (state: RootState) => state.profile,
   );
   const themeMode = useSelector((state: RootState) => state.settings.theme);
+  const companionEnabled = useSelector(
+    (state: RootState) => state.settings.companionEnabled ?? false,
+  );
   const themeOptions: Array<{ label: string; value: "light" | "dark" | "system" }> = [
     { label: "Light", value: "light" },
     { label: "Dark", value: "dark" },
     { label: "System", value: "system" },
   ];
+
+  const handleToggleCompanion = async (enabled: boolean) => {
+    if (!isPremium) {
+      router.push("/subscription");
+      return;
+    }
+    if (enabled) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        Alert.alert(
+          "Notifications Disabled",
+          "Allow notifications in your device settings to use the Hydration Companion.",
+        );
+        return;
+      }
+    } else {
+      await cancelCompanion();
+    }
+    dispatch(setCompanionEnabled(enabled));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // NotificationGate reacts to the settings change and shows/updates it.
+  };
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(name);
@@ -464,6 +495,42 @@ function ProfileScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </GlassCard>
+
+        {/* Hydration companion (Pro): ongoing progress notification */}
+        <GlassCard style={styles.settingsCard}>
+          <View style={styles.companionRow}>
+            <View style={[styles.preferenceHeader, { flex: 1 }]}>
+              <MaterialIcons
+                name="water-drop"
+                size={20}
+                color={theme.accent}
+              />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>
+                  Hydration Companion{!isPremium ? " (Pro)" : ""}
+                </Text>
+                <Text
+                  style={[
+                    styles.settingSubtitle,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  Pin today&apos;s progress with quick-add buttons in your
+                  notification shade.
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={isPremium && companionEnabled}
+              onValueChange={handleToggleCompanion}
+              trackColor={{
+                false: theme.progressBackground,
+                true: theme.accent,
+              }}
+              thumbColor="#fff"
+            />
           </View>
         </GlassCard>
 
@@ -789,6 +856,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   settingsCard: { marginBottom: 16, borderRadius: 20 },
+  companionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
   preferenceHeader: {
     flexDirection: "row",
     alignItems: "center",

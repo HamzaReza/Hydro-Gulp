@@ -46,3 +46,9 @@ app-example
 
 firebase-debug.log
 play-service-account.json
+# Claude Code local settings
+.claude/settings.local.json
+
+# Local Expo module build output
+modules/**/build/
+store-mockups/video/raw-phone-capture.mkv

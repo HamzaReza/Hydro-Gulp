@@ -11,6 +11,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { auth, db } from "../../firebase";
+import { DEFAULT_QUICK_ADD_AMOUNTS } from "../../constants/drinks";
 
 interface AuthState {
   uid: string | null;
@@ -41,6 +42,7 @@ const DEFAULT_USER_DOC = {
   premiumPlan: null,
   premiumExpiry: null,
   avatarColor: "#7AAACE",
+  quickAddPresets: DEFAULT_QUICK_ADD_AMOUNTS,
 };
 
 export const googleSignInThunk = createAsyncThunk(

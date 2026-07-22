@@ -17,6 +17,8 @@ export type ThemePreference = "light" | "dark" | "system";
 interface SettingsState {
   theme: ThemePreference;
   notificationsEnabled: boolean;
+  /** Pro ongoing progress notification. Absent in old persisted state — read as falsy. */
+  companionEnabled: boolean;
   reminders: Reminder[];
 }
 
@@ -47,6 +49,7 @@ export const fetchRemindersThunk = createAsyncThunk(
 const initialState: SettingsState = {
   theme: "system",
   notificationsEnabled: false,
+  companionEnabled: false,
   reminders: [],
 };
 
@@ -68,6 +71,9 @@ const settingsSlice = createSlice({
     },
     setNotificationsEnabled: (state, action: PayloadAction<boolean>) => {
       state.notificationsEnabled = action.payload;
+    },
+    setCompanionEnabled: (state, action: PayloadAction<boolean>) => {
+      state.companionEnabled = action.payload;
     },
     setReminders: (state, action: PayloadAction<Reminder[]>) => {
       state.reminders = action.payload;
@@ -110,6 +116,7 @@ export const {
   setTheme,
   toggleTheme,
   setNotificationsEnabled,
+  setCompanionEnabled,
   setReminders,
   addReminder,
   updateReminder,
