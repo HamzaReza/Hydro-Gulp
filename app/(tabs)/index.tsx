@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  Easing,
   FadeIn,
   FadeOut,
   useAnimatedStyle,
@@ -134,22 +135,44 @@ function CelebrationOverlay({
   visible: boolean;
   onDone: () => void;
 }) {
-  const scale = useSharedValue(0);
+  const scale = useSharedValue(0.85);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      scale.value = withSpring(1, { damping: 10 });
-      opacity.value = withTiming(1, { duration: 300 });
+      // Reset synchronously so a re-trigger doesn't jump from a stale position
+      scale.value = 0.85;
+      opacity.value = 0;
+      // Slight overshoot on scale gives a gentle "settle" jump, slow enough to read
+      scale.value = withTiming(1, {
+        duration: 550,
+        easing: Easing.out(Easing.back(1.3)),
+      });
+      opacity.value = withTiming(1, {
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+      });
       const t = setTimeout(() => {
-        opacity.value = withTiming(0, { duration: 500 });
-        setTimeout(onDone, 500);
+        scale.value = withTiming(0.92, {
+          duration: 350,
+          easing: Easing.in(Easing.cubic),
+        });
+        opacity.value = withTiming(0, {
+          duration: 350,
+          easing: Easing.in(Easing.cubic),
+        });
+        setTimeout(onDone, 350);
       }, 2500);
       return () => clearTimeout(t);
     }
   }, [visible]);
 
-  const style = useAnimatedStyle(() => ({
+  // Backdrop fades on its own opacity so the dim doesn't snap in/out instantly
+  const bgStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+  }));
+
+  const contentStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
@@ -158,8 +181,8 @@ function CelebrationOverlay({
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <View style={styles.celebrationBg}>
-        <Animated.View style={[styles.celebrationContent, style]}>
+      <Animated.View style={[styles.celebrationBg, bgStyle]}>
+        <Animated.View style={[styles.celebrationContent, contentStyle]}>
           <Text style={styles.celebrationEmoji}>🎉</Text>
           <Text style={styles.celebrationTitle}>Goal Reached!</Text>
           <View style={styles.celebrationSubRow}>
@@ -167,7 +190,7 @@ function CelebrationOverlay({
             <Text style={styles.celebrationSub}>Amazing hydration today!</Text>
           </View>
         </Animated.View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
