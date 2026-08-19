@@ -52,6 +52,16 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED;
 }
 
+/** Read-only permission check — never triggers the OS prompt. */
+export async function notificationPermissionGranted(): Promise<boolean> {
+  try {
+    const settings = await notifee.getNotificationSettings();
+    return settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED;
+  } catch {
+    return false;
+  }
+}
+
 /** Next occurrence of HH:MM as epoch ms (today if still ahead, else tomorrow). */
 export function nextOccurrence(hour: number, minute: number): number {
   const next = new Date();

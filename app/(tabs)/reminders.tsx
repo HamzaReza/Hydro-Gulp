@@ -33,6 +33,7 @@ import { AppDispatch, RootState } from "../../store";
 import {
   addReminder,
   deleteReminder,
+  FREE_REMINDER_LIMIT,
   setNotificationsEnabled,
   toggleReminder,
   updateReminder,
@@ -82,7 +83,6 @@ function RemindersScreen() {
       state.profile.quickAddPresets ?? DEFAULT_QUICK_ADD_AMOUNTS,
   );
 
-  const FREE_REMINDER_LIMIT = 2;
   const canAddReminder = isPremium || reminders.length < FREE_REMINDER_LIMIT;
 
   const handleToggleNotifications = async (enabled: boolean) => {

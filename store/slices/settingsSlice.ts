@@ -12,6 +12,9 @@ export interface Reminder {
   notificationId?: string;
 }
 
+/** Non-premium reminder cap, enforced wherever reminders are created. */
+export const FREE_REMINDER_LIMIT = 2;
+
 export type ThemePreference = "light" | "dark" | "system";
 
 interface SettingsState {
@@ -20,6 +23,8 @@ interface SettingsState {
   /** Pro ongoing progress notification. Absent in old persisted state — read as falsy. */
   companionEnabled: boolean;
   reminders: Reminder[];
+  /** getTodayString() value of the last day the reminder-setup prompt was shown/dismissed. */
+  lastReminderPromptDate: string | null;
 }
 
 export const fetchRemindersThunk = createAsyncThunk(
@@ -51,6 +56,7 @@ const initialState: SettingsState = {
   notificationsEnabled: false,
   companionEnabled: false,
   reminders: [],
+  lastReminderPromptDate: null,
 };
 
 const settingsSlice = createSlice({
@@ -74,6 +80,9 @@ const settingsSlice = createSlice({
     },
     setCompanionEnabled: (state, action: PayloadAction<boolean>) => {
       state.companionEnabled = action.payload;
+    },
+    setLastReminderPromptDate: (state, action: PayloadAction<string>) => {
+      state.lastReminderPromptDate = action.payload;
     },
     setReminders: (state, action: PayloadAction<Reminder[]>) => {
       state.reminders = action.payload;
@@ -117,6 +126,7 @@ export const {
   toggleTheme,
   setNotificationsEnabled,
   setCompanionEnabled,
+  setLastReminderPromptDate,
   setReminders,
   addReminder,
   updateReminder,

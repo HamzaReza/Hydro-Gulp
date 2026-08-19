@@ -28,6 +28,7 @@ import { BottomSheet } from "../../components/ui/BottomSheet";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { GradientButton } from "../../components/ui/GradientButton";
 import { PresetEditorSheet } from "../../components/ui/PresetEditorSheet";
+import { ReminderSetupModal } from "../../components/ReminderSetupModal";
 import { ScreenWrapper } from "../../components/ui/ScreenWrapper";
 import { withTabUnmountOnBlur } from "../../components/ui/withTabUnmountOnBlur";
 import {
@@ -703,6 +704,8 @@ function HomeScreen() {
         visible={showCelebration}
         onDone={() => setShowCelebration(false)}
       />
+
+      <ReminderSetupModal />
     </ScreenWrapper>
   );
 }
