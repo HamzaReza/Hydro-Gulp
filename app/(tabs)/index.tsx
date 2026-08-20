@@ -152,6 +152,7 @@ function CelebrationOverlay({
         duration: 500,
         easing: Easing.out(Easing.cubic),
       });
+      let innerT: ReturnType<typeof setTimeout>;
       const t = setTimeout(() => {
         scale.value = withTiming(0.92, {
           duration: 350,
@@ -161,9 +162,12 @@ function CelebrationOverlay({
           duration: 350,
           easing: Easing.in(Easing.cubic),
         });
-        setTimeout(onDone, 350);
+        innerT = setTimeout(onDone, 350);
       }, 2500);
-      return () => clearTimeout(t);
+      return () => {
+        clearTimeout(t);
+        clearTimeout(innerT);
+      };
     }
   }, [visible]);
 

@@ -4,7 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import * as StoreReview from "expo-store-review";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -43,6 +43,15 @@ import {
   setCompanionEnabled,
   setTheme,
 } from "../../store/slices/settingsSlice";
+
+const TIME_FORMAT_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Strips non-digits and auto-inserts the colon as the user types, e.g. "0700" -> "07:00". */
+function formatTimeInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
 
 function Avatar({
   name,
@@ -190,6 +199,13 @@ function ProfileScreen() {
   const [logoutLoading, setLogoutLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const handleSaveProfile = async () => {
     if (!uid) return;
     const newGoal = parseInt(editGoal, 10);
@@ -199,6 +215,10 @@ function ProfileScreen() {
     }
     if (!newGoal || newGoal < 500 || newGoal > 10000) {
       Alert.alert("Error", "Goal must be between 500 and 10000 ml.");
+      return;
+    }
+    if (!TIME_FORMAT_REGEX.test(editWake) || !TIME_FORMAT_REGEX.test(editSleep)) {
+      Alert.alert("Error", "Wake and sleep times must be in HH:MM format.");
       return;
     }
 
@@ -216,7 +236,7 @@ function ProfileScreen() {
     );
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setEditModalVisible(false);
+    if (isMountedRef.current) setEditModalVisible(false);
   };
 
   const handleLogout = async () => {
@@ -228,7 +248,7 @@ function ProfileScreen() {
         onPress: async () => {
           setLogoutLoading(true);
           await dispatch(logoutThunk());
-          setLogoutLoading(false);
+          if (isMountedRef.current) setLogoutLoading(false);
         },
       },
     ]);
@@ -247,7 +267,7 @@ function ProfileScreen() {
             if (!uid) return;
             setDeleteLoading(true);
             const result = await dispatch(deleteAccountThunk(uid));
-            setDeleteLoading(false);
+            if (isMountedRef.current) setDeleteLoading(false);
             if (deleteAccountThunk.rejected.match(result)) {
               Alert.alert(
                 "Deletion Failed",
@@ -673,16 +693,16 @@ function ProfileScreen() {
                 {
                   label: "Wake Up Time (HH:MM)",
                   value: editWake,
-                  onChange: setEditWake,
+                  onChange: (t: string) => setEditWake(formatTimeInput(t)),
                   placeholder: "07:00",
-                  keyboardType: "numbers-and-punctuation" as const,
+                  keyboardType: "number-pad" as const,
                 },
                 {
                   label: "Sleep Time (HH:MM)",
                   value: editSleep,
-                  onChange: setEditSleep,
+                  onChange: (t: string) => setEditSleep(formatTimeInput(t)),
                   placeholder: "23:00",
-                  keyboardType: "numbers-and-punctuation" as const,
+                  keyboardType: "number-pad" as const,
                 },
               ].map((field) => (
                 <View key={field.label} style={styles.modalField}>

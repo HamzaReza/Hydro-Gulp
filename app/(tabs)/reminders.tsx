@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { deleteDoc, doc, setDoc } from "firebase/firestore";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -77,6 +77,13 @@ function RemindersScreen() {
   const [editingReminder, setEditingReminder] = useState<string | null>(null);
   const [reminderTime, setReminderTime] = useState("08:00");
   const [reminderLabel, setReminderLabel] = useState("Time to hydrate!");
+
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const quickAddPresets = useSelector(
     (state: RootState) =>
@@ -195,10 +202,12 @@ function RemindersScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSheetVisible(false);
-    setEditingReminder(null);
-    setReminderTime("08:00");
-    setReminderLabel("Time to hydrate!");
+    if (isMountedRef.current) {
+      setSheetVisible(false);
+      setEditingReminder(null);
+      setReminderTime("08:00");
+      setReminderLabel("Time to hydrate!");
+    }
   };
 
   const handleDeleteReminder = async (reminderId: string) => {
