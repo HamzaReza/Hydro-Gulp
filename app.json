@@ -54,7 +54,7 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM"
       ],
-      "versionCode": 9
+      "versionCode": 10
     },
     "web": {
       "bundler": "metro",
@@ -84,6 +84,8 @@
             "useFrameworks": "static"
           },
           "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
             "extraMavenRepos": [
               "../../node_modules/@notifee/react-native/android/libs"
             ]
